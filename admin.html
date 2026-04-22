@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAN-CRM — Admin Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#FAFAF6; --surface:#FFFFFF; --surface-2:#F3F5F2;
+  --primary:#1C4530; --primary-hover:#153826; --primary-muted:#E8F0EB;
+  --accent:#C97A2A; --accent-hover:#AE6822; --accent-muted:#FDF3E7;
+  --border:#DDE5E1; --border-strong:#BFD0C8;
+  --text-primary:#18231E; --text-secondary:#536960; --text-muted:#8FA898;
+  --success:#1A7A4A; --success-bg:#E6F5EE;
+  --warning:#C97A2A; --warning-bg:#FDF3E7;
+  --error:#C63927; --error-bg:#FDECEA;
+  --info:#1C6B9E; --info-bg:#E8F2FA;
+  --shadow-sm:0 1px 2px rgba(28,69,48,.06);
+  --shadow-md:0 4px 12px rgba(28,69,48,.08);
+  --font-display:'Instrument Sans',system-ui,sans-serif;
+  --font-body:'DM Sans',system-ui,sans-serif;
+  --radius-sm:4px; --radius-md:8px; --radius-lg:12px; --radius-full:9999px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;height:100%}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text-primary);line-height:1.5;height:100%;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* ── Top nav ─── */
+.topnav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--sp-6);height:54px;background:var(--primary);color:#fff;flex-shrink:0;gap:var(--sp-4);
+  border-bottom:1px solid var(--primary-hover);
+}
+.logo{display:flex;align-items:center;gap:var(--sp-2);text-decoration:none}
+.logo-mark{
+  width:28px;height:28px;background:#fff;color:var(--primary);border-radius:var(--radius-sm);
+  display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:11px;
+}
+.logo-text{font-family:var(--font-display);font-weight:700;font-size:15px;color:#fff;letter-spacing:-.01em}
+.admin-chip{
+  display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;
+  background:rgba(201,122,42,.15);border:1px solid var(--accent);color:var(--accent);
+  font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-left:6px;
+}
+.admin-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(201,122,42,.25)}
+.topnav-actions{display:flex;align-items:center;gap:var(--sp-3)}
+.admin-user{display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.82)}
+.admin-user .avatar{
+  width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.12);
+  display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:11px;color:#fff;
+}
+.topnav .logout-btn{
+  background:transparent;border:1px solid rgba(255,255,255,.18);color:#fff;
+  padding:5px 12px;border-radius:var(--radius-md);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+.topnav .logout-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+
+/* ── Body ─── */
+.main-body{display:flex;flex:1;overflow:hidden}
+.sidebar{
+  width:220px;background:var(--surface);border-right:1px solid var(--border);
+  flex-shrink:0;overflow-y:auto;padding:var(--sp-4) 0;
+  display:flex;flex-direction:column;gap:var(--sp-1);
+}
+.sidebar-label{
+  font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--text-muted);padding:0 var(--sp-4);margin:var(--sp-3) 0 var(--sp-1);
+}
+.nav-item{
+  display:flex;align-items:center;gap:var(--sp-2);
+  padding:7px var(--sp-3);margin:0 var(--sp-3);border-radius:var(--radius-sm);
+  font-size:13px;font-weight:500;color:var(--text-secondary);cursor:pointer;
+  transition:background .1s, color .1s;user-select:none;
+}
+.nav-item:hover{background:var(--surface-2);color:var(--text-primary)}
+.nav-item.active{background:var(--primary-muted);color:var(--primary);font-weight:600}
+.nav-item .ico{width:16px;flex-shrink:0;opacity:.75;font-size:13px}
+.nav-badge{
+  margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;
+  padding:1px 7px;border-radius:999px;font-variant-numeric:tabular-nums;
+}
+.nav-badge.muted{background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border)}
+
+.content{flex:1;overflow-y:auto;padding:var(--sp-5) var(--sp-6);min-width:0}
+
+.page-header{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+  margin-bottom:var(--sp-5);flex-wrap:wrap;
+}
+.page-title{font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-.01em;line-height:1.2}
+.page-subtitle{font-size:13px;color:var(--text-secondary);margin-top:4px}
+
+/* ── Filter bar ─── */
+.filter-bar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);
+  margin-bottom:var(--sp-5);
+}
+.filter-bar .label{font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-full);padding:2px;gap:2px}
+.seg button{
+  background:transparent;border:none;padding:5px 11px;font-size:12px;font-weight:600;
+  color:var(--text-secondary);cursor:pointer;border-radius:999px;font-family:inherit;
+}
+.seg button.active{background:var(--primary);color:#fff}
+.seg button:hover:not(.active){color:var(--text-primary)}
+.filter-bar .spacer{flex:1}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
+  border-radius:var(--radius-md);font-family:var(--font-body);font-size:12.5px;font-weight:600;
+  cursor:pointer;transition:all .15s;border:1px solid transparent;white-space:nowrap;
+}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-secondary{background:var(--surface);color:var(--text-primary);border-color:var(--border-strong)}
+.btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-accent:hover{background:var(--accent-hover)}
+.btn-ghost{background:transparent;color:var(--text-secondary);border-color:transparent}
+.btn-ghost:hover{background:var(--surface-2);color:var(--text-primary)}
+.btn-danger{background:var(--error-bg);color:var(--error);border-color:rgba(198,57,39,.25)}
+.btn-danger:hover{background:var(--error);color:#fff;border-color:var(--error)}
+.btn-sm{padding:4px 9px;font-size:11px}
+
+/* ── Stat cards ─── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:var(--sp-5)}
+.kpi{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);
+  padding:14px 16px;position:relative;overflow:hidden;
+}
+.kpi::before{content:'';position:absolute;inset:0 auto 0 0;width:3px;background:var(--primary)}
+.kpi.accent::before{background:var(--accent)}
+.kpi.info::before{background:var(--info)}
+.kpi.success::before{background:var(--success)}
+.kpi .k{font-family:var(--font-display);font-weight:700;font-size:24px;letter-spacing:-.01em;line-height:1.1;margin-top:2px}
+.kpi .l{font-size:11px;color:var(--text-muted);letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+.kpi .d{font-size:11px;color:var(--text-secondary);margin-top:4px}
+
+/* ── Cards & tables ─── */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);
+  margin-bottom:var(--sp-5);overflow:hidden;
+}
+.card-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;
+}
+.card-head h3{font-family:var(--font-display);font-weight:700;font-size:14px;letter-spacing:-.005em}
+.card-head .card-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+.card-head .actions{display:flex;gap:6px;flex-wrap:wrap}
+.card-body{padding:14px 16px}
+.card-body.pad-0{padding:0}
+
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th, .table td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border)}
+.table th{
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);
+  font-weight:600;background:var(--surface-2);
+}
+.table tr:last-child td{border-bottom:none}
+.table td.num, .table th.num{text-align:right;font-variant-numeric:tabular-nums}
+.table td .sub{font-size:11px;color:var(--text-muted)}
+.table tr:hover td{background:var(--surface-2)}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;
+  font-size:10.5px;font-weight:600;letter-spacing:.02em;
+}
+.badge-ok{background:var(--success-bg);color:var(--success)}
+.badge-warn{background:var(--warning-bg);color:var(--warning)}
+.badge-err{background:var(--error-bg);color:var(--error)}
+.badge-info{background:var(--info-bg);color:var(--info)}
+.badge-muted{background:var(--surface-2);color:var(--text-secondary);border:1px solid var(--border)}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+.row-actions{display:flex;gap:4px;justify-content:flex-end}
+.row-actions button{
+  background:transparent;border:1px solid var(--border);color:var(--text-secondary);
+  padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+.row-actions button:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-muted)}
+.row-actions button.danger:hover{border-color:var(--error);color:var(--error);background:var(--error-bg)}
+.row-actions button.warn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-muted)}
+
+.empty{
+  padding:32px 16px;text-align:center;color:var(--text-muted);font-size:13px;
+  background:var(--surface-2);border:1px dashed var(--border-strong);border-radius:var(--radius-md);
+}
+
+/* ── Section show/hide ─── */
+.section{display:none}
+.section.active{display:block}
+
+/* ── Quick search ─── */
+.search-input{
+  padding:6px 12px 6px 32px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-full);font-size:12.5px;color:var(--text-primary);outline:none;width:220px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238FA898' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:10px center;
+}
+.search-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-muted)}
+
+/* ── Modal ─── */
+.ov{
+  position:fixed;inset:0;background:rgba(16,35,25,.45);display:none;
+  align-items:center;justify-content:center;z-index:100;padding:20px;
+}
+.ov.on{display:flex}
+.mod{
+  background:var(--surface);border-radius:var(--radius-lg);width:100%;max-width:520px;
+  max-height:90vh;overflow:auto;border:1px solid var(--border);box-shadow:0 24px 60px rgba(0,0,0,.2);
+}
+.mod-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+.mod-head h3{font-family:var(--font-display);font-weight:700;font-size:15px}
+.mod-body{padding:18px}
+.mod-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--border);background:var(--surface-2)}
+.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.fld label{font-size:11px;font-weight:600;color:var(--text-secondary)}
+.fld input, .fld select, .fld textarea{
+  padding:8px 11px;font-family:var(--font-body);font-size:13px;
+  border:1px solid var(--border-strong);border-radius:var(--radius-md);outline:none;background:var(--surface);color:var(--text-primary);
+}
+.fld input:focus, .fld select:focus, .fld textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-muted)}
+.fld textarea{resize:vertical;min-height:70px;font-family:inherit}
+.fld-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.close-x{background:transparent;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1;padding:4px 8px;border-radius:4px}
+.close-x:hover{background:var(--surface-2);color:var(--text-primary)}
+
+/* ── Toast ─── */
+.toast{
+  position:fixed;top:24px;left:50%;transform:translateX(-50%);
+  padding:10px 18px;border-radius:var(--radius-md);background:var(--primary);color:#fff;
+  font-size:13px;font-weight:500;box-shadow:0 12px 32px rgba(28,69,48,.25);z-index:1000;
+  opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;
+}
+.toast.show{opacity:1;transform:translate(-50%,6px)}
+.toast.err{background:var(--error)} .toast.ok{background:var(--success)}
+
+/* ── Gate ─── */
+.gate{
+  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;
+}
+.gate .box{
+  max-width:380px;text-align:center;padding:32px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);
+}
+.gate h2{font-family:var(--font-display);font-weight:700;font-size:20px;margin-bottom:8px}
+.gate p{color:var(--text-secondary);font-size:13px;margin-bottom:18px}
+</style>
+</head>
+<body>
+
+<!-- ── ACCESS GATE ────────────────────────────────────────────── -->
+<div class="gate" id="gate">
+  <div class="box">
+    <h2>Admin access required</h2>
+    <p>You need to sign in with an authorised admin mobile number to continue.</p>
+    <a href="admin-login.html" class="btn btn-primary" style="width:100%;justify-content:center">Go to admin sign in</a>
+  </div>
+</div>
+
+<!-- ── APP ────────────────────────────────────────────────────── -->
+<div class="app" id="app" style="display:none">
+
+  <!-- Top bar -->
+  <header class="topnav">
+    <div style="display:flex;align-items:center;gap:8px">
+      <a href="#" class="logo">
+        <span class="logo-mark">CC</span>
+        <span class="logo-text">CAN-CRM</span>
+      </a>
+      <span class="admin-chip"><span class="dot"></span>Admin</span>
+    </div>
+    <div class="topnav-actions">
+      <input class="search-input" placeholder="Search DSAs, files, banks…" id="admin-search">
+      <div class="admin-user">
+        <div class="avatar" id="admin-avatar">AD</div>
+        <div>
+          <div style="font-size:12px;font-weight:600;line-height:1.2">Admin</div>
+          <div style="font-size:10.5px;color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums" id="admin-mobile">+91 •••••••</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <div class="main-body">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-label">Overview</div>
+      <div class="nav-item active" data-section="overview"><span class="ico">◉</span> Dashboard</div>
+
+      <div class="sidebar-label">People</div>
+      <div class="nav-item" data-section="dsas"><span class="ico">◇</span> DSAs &amp; Companies <span class="nav-badge" id="nb-dsa">0</span></div>
+      <div class="nav-item" data-section="partners"><span class="ico">◇</span> Connectors / Sub-DSA <span class="nav-badge muted" id="nb-part">0</span></div>
+      <div class="nav-item" data-section="team"><span class="ico">◇</span> Team / Accounts <span class="nav-badge muted" id="nb-team">0</span></div>
+      <div class="nav-item" data-section="banks"><span class="ico">◇</span> Banks / NBFC / Credit <span class="nav-badge muted" id="nb-bank">0</span></div>
+
+      <div class="sidebar-label">Queues</div>
+      <div class="nav-item" data-section="borrowers"><span class="ico">◆</span> Borrowers &amp; Files <span class="nav-badge" id="nb-borr">0</span></div>
+      <div class="nav-item" data-section="policies"><span class="ico">◆</span> Bank Policies <span class="nav-badge muted" id="nb-pol">0</span></div>
+      <div class="nav-item" data-section="dump"><span class="ico">◆</span> Files Dump <span class="nav-badge muted" id="nb-dump">0</span></div>
+      <div class="nav-item" data-section="directory"><span class="ico">◆</span> Banker Directory <span class="nav-badge muted" id="nb-dir">0</span></div>
+
+      <div class="sidebar-label">Money</div>
+      <div class="nav-item" data-section="payouts"><span class="ico">₹</span> Payouts</div>
+
+      <div class="sidebar-label">Ops</div>
+      <div class="nav-item" data-section="reports"><span class="ico">⬇</span> Reports (Excel)</div>
+      <div class="nav-item" data-section="audit"><span class="ico">⬡</span> Audit log</div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="content">
+
+      <!-- ═════════ OVERVIEW ═════════ -->
+      <section class="section active" id="sec-overview">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Control panel</h1>
+            <div class="page-subtitle">Full administrative view — hold, edit, delete and export across every queue.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="showSection('reports')">Excel reports</button>
+            <button class="btn btn-primary" onclick="refreshAll()">Refresh data</button>
+          </div>
+        </div>
+
+        <!-- Time range filter (affects KPIs & reports) -->
+        <div class="filter-bar">
+          <span class="label">Time range</span>
+          <div class="seg" id="range-seg">
+            <button data-range="day">Day</button>
+            <button data-range="week">Week</button>
+            <button data-range="month" class="active">Month</button>
+            <button data-range="3m">3 Months</button>
+            <button data-range="6m">6 Months</button>
+            <button data-range="year">Yearly</button>
+            <button data-range="all">All time</button>
+          </div>
+          <span class="spacer"></span>
+          <span id="range-summary" style="font-size:11.5px;color:var(--text-muted)">—</span>
+        </div>
+
+        <!-- KPI grid -->
+        <div class="kpi-grid" id="kpi-grid"></div>
+
+        <!-- Mini queues -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Disbursement by loan type</h3>
+              <div class="card-sub">Volume &amp; count in selected range</div>
+            </div>
+          </div>
+          <div class="card-body pad-0">
+            <table class="table" id="by-type-table">
+              <thead><tr><th>Loan type</th><th class="num">Files</th><th class="num">Disbursed</th><th class="num">Volume</th><th class="num">Avg ticket</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Top DSAs by disbursement</h3>
+              <div class="card-sub">In selected range</div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-secondary btn-sm" onclick="exportExcel('top-dsas')">Export Excel</button>
+            </div>
+          </div>
+          <div class="card-body pad-0">
+            <table class="table" id="top-dsa-table">
+              <thead><tr><th>DSA</th><th class="num">Files</th><th class="num">Disbursed</th><th class="num">Volume</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ DSAs ═════════ -->
+      <section class="section" id="sec-dsas">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">DSAs &amp; DSA Companies</h1>
+            <div class="page-subtitle">All registered direct selling agents. Hold suspends login; delete removes access.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('dsas')">Export Excel</button>
+            <button class="btn btn-primary" onclick="openUserModal('dsa')">+ Add DSA</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="dsa-table-wrap"></div></div>
+      </section>
+
+      <!-- ═════════ Partners ═════════ -->
+      <section class="section" id="sec-partners">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Connectors &amp; Sub-DSAs</h1>
+            <div class="page-subtitle">Users attached to a parent DSA.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('partners')">Export Excel</button>
+            <button class="btn btn-primary" onclick="openUserModal('partner')">+ Add partner</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="partner-table-wrap"></div></div>
+      </section>
+
+      <!-- ═════════ Team ═════════ -->
+      <section class="section" id="sec-team">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Team Members &amp; Accounts</h1>
+            <div class="page-subtitle">Internal team users.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('team')">Export Excel</button>
+            <button class="btn btn-primary" onclick="openUserModal('team')">+ Add member</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="team-table-wrap"></div></div>
+      </section>
+
+      <!-- ═════════ Banks ═════════ -->
+      <section class="section" id="sec-banks">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Banks, NBFC &amp; Credit Teams</h1>
+            <div class="page-subtitle">Lender desks and credit reviewers.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('banks')">Export Excel</button>
+            <button class="btn btn-primary" onclick="openUserModal('bank')">+ Add lender</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="bank-table-wrap"></div></div>
+      </section>
+
+      <!-- ═════════ Borrowers / Files ═════════ -->
+      <section class="section" id="sec-borrowers">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Borrowers &amp; Active Files</h1>
+            <div class="page-subtitle">Every file across every DSA — review stage, disbursement status and volume.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('borrowers')">Export Excel</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <span class="label">Stage</span>
+          <div class="seg" id="borr-stage-seg">
+            <button data-stage="all" class="active">All</button>
+            <button data-stage="login">Login</button>
+            <button data-stage="review">Review</button>
+            <button data-stage="sanction">Sanction</button>
+            <button data-stage="disb">Disbursed</button>
+            <button data-stage="hold">Hold</button>
+            <button data-stage="rej">Rejected</button>
+          </div>
+          <span class="spacer"></span>
+          <span id="borr-summary" style="font-size:11.5px;color:var(--text-muted)">—</span>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="borr-table-wrap"></div></div>
+      </section>
+
+      <!-- ═════════ Bank Policies ═════════ -->
+      <section class="section" id="sec-policies">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Bank Policies</h1>
+            <div class="page-subtitle">All updated policies across products. Review, edit or delete.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('policies')">Export Excel</button>
+            <button class="btn btn-primary" onclick="openPolicyModal()">+ Add policy</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <span class="label">Product</span>
+          <div class="seg" id="pol-cat-seg">
+            <button data-cat="all" class="active">All</button>
+            <button data-cat="business">Business</button>
+            <button data-cat="personal">Personal</button>
+            <button data-cat="home">Home</button>
+            <button data-cat="lap">LAP</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="pol-table-wrap"></div></div>
+      </section>
+
+      <!-- ═════════ Files Dump ═════════ -->
+      <section class="section" id="sec-dump">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Files Dump — Credit profiles</h1>
+            <div class="page-subtitle">Credit review profiles submitted by DSAs.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('dump')">Export Excel</button>
+            <button class="btn btn-primary" onclick="openDumpModal()">+ Add profile</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="dump-table-wrap"></div></div>
+      </section>
+
+      <!-- ═════════ Banker Directory ═════════ -->
+      <section class="section" id="sec-directory">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Banker Directory</h1>
+            <div class="page-subtitle">Relationship managers and bank contacts.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('directory')">Export Excel</button>
+            <button class="btn btn-primary" onclick="openBankerModal()">+ Add banker</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="dir-table-wrap"></div></div>
+      </section>
+
+      <!-- ═════════ Payouts ═════════ -->
+      <section class="section" id="sec-payouts">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Payouts</h1>
+            <div class="page-subtitle">Commissions accrued &amp; paid to DSAs, connectors and partners.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('payouts')">Export Excel</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="pay-table-wrap"></div></div>
+      </section>
+
+      <!-- ═════════ Reports ═════════ -->
+      <section class="section" id="sec-reports">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Excel reports</h1>
+            <div class="page-subtitle">Download any queue as Excel — filter by day / week / month / 3M / 6M / year / all-time.</div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <span class="label">Time range</span>
+          <div class="seg" id="rep-range-seg">
+            <button data-range="day">Day</button>
+            <button data-range="week">Week</button>
+            <button data-range="month" class="active">Month</button>
+            <button data-range="3m">3 Months</button>
+            <button data-range="6m">6 Months</button>
+            <button data-range="year">Yearly</button>
+            <button data-range="all">All time</button>
+          </div>
+          <span class="spacer"></span>
+          <span class="label">Filter by DSA</span>
+          <select id="rep-dsa-filter" class="search-input" style="background-image:none;padding-left:12px;width:200px">
+            <option value="">All DSAs / Partners</option>
+          </select>
+        </div>
+
+        <div class="kpi-grid" id="reports-kpi"></div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
+          <!-- filled by JS -->
+          <div id="reports-grid" style="display:contents"></div>
+        </div>
+      </section>
+
+      <!-- ═════════ Audit ═════════ -->
+      <section class="section" id="sec-audit">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Audit log</h1>
+            <div class="page-subtitle">Every admin action — hold, delete, edit — across all queues.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="exportExcel('audit')">Export Excel</button>
+            <button class="btn btn-ghost" onclick="clearAudit()">Clear log</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body pad-0" id="audit-table-wrap"></div></div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ── MODAL ──────────────────────────────────────────── -->
+<div class="ov" id="modal">
+  <div class="mod">
+    <div class="mod-head">
+      <h3 id="modal-title">Edit</h3>
+      <button class="close-x" onclick="closeModal()">×</button>
+    </div>
+    <div class="mod-body" id="modal-body"></div>
+    <div class="mod-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="admin.js"></script>
+</body>
+</html>

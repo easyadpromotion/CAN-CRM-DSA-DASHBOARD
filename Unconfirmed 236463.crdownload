@@ -1,0 +1,1017 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CAN-CRM Admin Control Panel
+   ─────────────────────────────────────────────────────────────────────────── */
+
+const ALLOWED_ADMINS = new Set(['9398504048','7075772292']);
+
+/* ── Seed demo users (only if none exist) ─────────────────────────────────── */
+const SEED_USERS = [
+  { id:'u1',  name:'Rahul Menon',        type:'individual-dsa', mobile:'9812345001', email:'rahul@example.com', dsaName:null,                bankName:null, parent:null,  status:'active',  createdAt: daysAgo(120) },
+  { id:'u2',  name:'Aarav Finance LLP',  type:'dsa-company',    mobile:'9812345002', email:'ops@aaravfin.in',   dsaName:null,                bankName:null, parent:null,  status:'active',  createdAt: daysAgo(210) },
+  { id:'u3',  name:'Priya Sharma',       type:'individual-dsa', mobile:'9812345003', email:'priya@example.com', dsaName:null,                bankName:null, parent:null,  status:'hold',    createdAt: daysAgo(60) },
+  { id:'u4',  name:'Kunal Joshi',        type:'dsa-company',    mobile:'9812345004', email:'kunal@jco.in',      dsaName:null,                bankName:null, parent:null,  status:'active',  createdAt: daysAgo(340) },
+  { id:'u5',  name:'Meera Iyer',         type:'connector',      mobile:'9812345005', email:'meera@example.com', dsaName:'Aarav Finance LLP', bankName:null, parent:'u2',  status:'active',  createdAt: daysAgo(45) },
+  { id:'u6',  name:'Vikram Patel',       type:'sub-dsa',        mobile:'9812345006', email:'vik@example.com',   dsaName:'Aarav Finance LLP', bankName:null, parent:'u2',  status:'active',  createdAt: daysAgo(72) },
+  { id:'u7',  name:'Sneha Rao',          type:'connector',      mobile:'9812345007', email:'sneha@example.com', dsaName:'Rahul Menon',       bankName:null, parent:'u1',  status:'active',  createdAt: daysAgo(28) },
+  { id:'u8',  name:'Anjali Desk',        type:'team-member',    mobile:'9812345008', email:'anjali@aaravfin.in',dsaName:'Aarav Finance LLP', bankName:null, parent:'u2',  status:'active',  createdAt: daysAgo(90) },
+  { id:'u9',  name:'Rohit Accounts',     type:'accounts',       mobile:'9812345009', email:'rohit@aaravfin.in', dsaName:'Aarav Finance LLP', bankName:null, parent:'u2',  status:'active',  createdAt: daysAgo(50) },
+  { id:'u10', name:'HDFC Bank - Mumbai', type:'bank',           mobile:'9812345010', email:'sme@hdfc.in',       dsaName:null, bankName:'HDFC Bank',       parent:null,  status:'active',  createdAt: daysAgo(400) },
+  { id:'u11', name:'Bajaj Finserv Desk', type:'nbfc',           mobile:'9812345011', email:'desk@bajaj.in',     dsaName:null, bankName:'Bajaj Finserv',   parent:null,  status:'active',  createdAt: daysAgo(280) },
+  { id:'u12', name:'ICICI Credit',       type:'credit-team',    mobile:'9812345012', email:'credit@icici.in',   dsaName:null, bankName:'ICICI Bank',      parent:null,  status:'active',  createdAt: daysAgo(180) },
+];
+
+function daysAgo(n){ return Date.now() - n*86400000; }
+
+/* ── State ────────────────────────────────────────────────────────────────── */
+const S = {
+  range: 'month',
+  repRange: 'month',
+  repDsa: '',
+  borrStage: 'all',
+  polCat: 'all',
+  search: '',
+  editCtx: null,
+};
+
+/* ── Storage helpers ──────────────────────────────────────────────────────── */
+const DB = {
+  users: {
+    get(){ try{ return JSON.parse(localStorage.getItem('cancrm-admin-users') || '[]'); }catch(e){return [];} },
+    set(v){ localStorage.setItem('cancrm-admin-users', JSON.stringify(v)); },
+  },
+  borrowers: {
+    get(){ try{ return JSON.parse(localStorage.getItem('cancrm-admin-borrowers') || '[]'); }catch(e){return [];} },
+    set(v){ localStorage.setItem('cancrm-admin-borrowers', JSON.stringify(v)); },
+  },
+  policies: {
+    get(){ try{ return JSON.parse(localStorage.getItem('cancrm-admin-policies') || '[]'); }catch(e){return [];} },
+    set(v){ localStorage.setItem('cancrm-admin-policies', JSON.stringify(v)); },
+  },
+  dump: {
+    get(){ try{ return JSON.parse(localStorage.getItem('cancrm-admin-dump') || '[]'); }catch(e){return [];} },
+    set(v){ localStorage.setItem('cancrm-admin-dump', JSON.stringify(v)); },
+  },
+  directory: {
+    get(){ try{ return JSON.parse(localStorage.getItem('cancrm-admin-directory') || '[]'); }catch(e){return [];} },
+    set(v){ localStorage.setItem('cancrm-admin-directory', JSON.stringify(v)); },
+  },
+  payouts: {
+    get(){ try{ return JSON.parse(localStorage.getItem('cancrm-admin-payouts') || '[]'); }catch(e){return [];} },
+    set(v){ localStorage.setItem('cancrm-admin-payouts', JSON.stringify(v)); },
+  },
+  audit: {
+    get(){ try{ return JSON.parse(localStorage.getItem('cancrm-admin-audit') || '[]'); }catch(e){return [];} },
+    set(v){ localStorage.setItem('cancrm-admin-audit', JSON.stringify(v)); },
+    log(action, target, details){
+      const l = DB.audit.get();
+      l.unshift({ id: Date.now()+''+Math.random().toString(36).slice(2,7), at: Date.now(), by: getAdminMobile(), action, target, details: details||'' });
+      DB.audit.set(l.slice(0,500));
+    },
+  },
+};
+
+function seedIfEmpty(){
+  if (!DB.users.get().length) DB.users.set(SEED_USERS);
+  if (!DB.borrowers.get().length) DB.borrowers.set(genBorrowers());
+  if (!DB.policies.get().length) DB.policies.set(genPolicies());
+  if (!DB.dump.get().length) DB.dump.set(genDump());
+  if (!DB.directory.get().length) DB.directory.set(genDirectory());
+  if (!DB.payouts.get().length) DB.payouts.set(genPayouts());
+}
+
+function genBorrowers(){
+  const stages = ['login','review','sanction','disb','disb','disb','hold','rej'];
+  const types  = ['Business Loan','Personal Loan','Home Loan','LAP'];
+  const banks  = ['HDFC Bank','Bajaj Finserv','ICICI Bank','Axis Bank','Kotak','IDFC First','Tata Capital'];
+  const names  = ['Anil Verma','Sita Krishnan','Kiran Rao','Meenakshi Iyer','Raj Kapoor','Nisha Sharma','Arun Menon','Pooja Singh','Vivek Shah','Sanjay Gupta','Rekha Nair','Tarun Bose','Payal Mehta','Devika Joshi','Aditya Rao','Harsh Patel'];
+  const dsas = SEED_USERS.filter(u => ['individual-dsa','dsa-company','connector','sub-dsa'].includes(u.type));
+  const out = [];
+  for (let i=0;i<42;i++){
+    const stage = stages[i % stages.length];
+    const t = types[i % types.length];
+    const amt = Math.round((Math.random()*45 + 5) * 100000); // 5L - 50L
+    const dsa = dsas[i % dsas.length];
+    out.push({
+      id: 'b'+(i+1),
+      name: names[i % names.length],
+      mobile: '98' + String(1000000000 + Math.floor(Math.random()*8999999)).slice(0,8),
+      loanType: t,
+      bank: banks[i % banks.length],
+      amount: amt,
+      disbursed: stage === 'disb' ? amt : 0,
+      stage,
+      dsaId: dsa.id,
+      dsaName: dsa.name,
+      createdAt: daysAgo(Math.floor(Math.random()*200)),
+      disbAt: stage === 'disb' ? daysAgo(Math.floor(Math.random()*180)) : null,
+    });
+  }
+  return out;
+}
+function genPolicies(){
+  const banks = ['HDFC Bank','Bajaj Finserv','ICICI Bank','Axis Bank','Kotak','IDFC First','Tata Capital','Aditya Birla','Poonawalla','IIFL'];
+  const cats = ['business','personal','home','lap'];
+  const out = [];
+  banks.forEach((b, i) => {
+    cats.forEach((c, j) => {
+      if ((i + j) % 2 === 0) return; // sparse
+      out.push({
+        id: 'p' + (out.length+1),
+        cat: c, bank: b,
+        roi: (9 + Math.random()*8).toFixed(2) + '%',
+        amt: (5 + Math.floor(Math.random()*95)) + ' L',
+        cibil: (650 + Math.floor(Math.random()*10)*10) + '+',
+        tat: (3 + Math.floor(Math.random()*10)) + ' days',
+        pay: (0.5 + Math.random()*2.5).toFixed(2) + '%',
+        loc: ['Mumbai','Delhi NCR','Bengaluru','Chennai','Hyderabad','Pune'][i % 6],
+        hl: 'Balance transfer · Top-up available · Doorstep service',
+        con: 'RM · ' + ['Rohit','Sneha','Amit','Divya'][j] + ' 98' + String(10000000+i*11+j).slice(0,8),
+        updatedAt: daysAgo(Math.floor(Math.random()*60)),
+      });
+    });
+  });
+  return out;
+}
+function genDump(){
+  const names = ['Arjun Textiles','Priya Exports','Nakshatra Foods','RK Engineering','Zen Electronics','Maya Crafts','Bharat Spares'];
+  return names.map((n,i) => ({
+    id: 'd'+(i+1),
+    name: n,
+    btype: ['Mfg','Trading','Services','Retail'][i%4],
+    tbank: (80 + Math.random()*400).toFixed(0),
+    tgst: (60 + Math.random()*300).toFixed(0),
+    titr: (50 + Math.random()*250).toFixed(0),
+    req: (10 + Math.floor(Math.random()*40)) + ' L',
+    rdo: ['Doable','Not Doable','Review'][i%3],
+    createdAt: daysAgo(Math.floor(Math.random()*90)),
+    cat: 'business',
+  }));
+}
+function genDirectory(){
+  const names = ['Amit Khanna','Divya Rao','Sunil Yadav','Priya Kapoor','Rohit Nair','Neha Shah'];
+  const banks = ['HDFC Bank','ICICI Bank','Axis Bank','Kotak','Bajaj Finserv','IDFC First'];
+  return names.map((n,i) => ({
+    id: 'r'+(i+1), name: n, bank: banks[i], role: 'RM - ' + ['BL','PL','HL','LAP'][i%4],
+    mobile: '98'+String(5000000000 + i*1111).slice(0,8),
+    email: n.toLowerCase().split(' ')[0] + '@' + banks[i].toLowerCase().split(' ')[0] + '.in',
+    city: ['Mumbai','Delhi','Bengaluru','Pune','Hyderabad','Chennai'][i],
+    updatedAt: daysAgo(Math.floor(Math.random()*40)),
+  }));
+}
+function genPayouts(){
+  const disb = DB.borrowers.get().filter(b=>b.stage==='disb');
+  return disb.slice(0,15).map((b,i)=>({
+    id:'pay'+(i+1),
+    borrowerId:b.id, name:b.name, loanType:b.loanType, amount:b.amount,
+    dsaId:b.dsaId, dsaName:b.dsaName, pct: (0.8+Math.random()*1.6).toFixed(2),
+    paid: i%3 !== 0,
+    at: b.disbAt || daysAgo(Math.floor(Math.random()*90)),
+  }));
+}
+
+/* ── Gate ─────────────────────────────────────────────────────────────────── */
+function getAdminMobile(){
+  try { return (JSON.parse(localStorage.getItem('cancrm-admin-session')||'null')||{}).mobile || null; } catch(e){ return null; }
+}
+function checkGate(){
+  const m = getAdminMobile();
+  if (!m || !ALLOWED_ADMINS.has(m)) {
+    document.getElementById('gate').style.display = '';
+    document.getElementById('app').style.display = 'none';
+    return false;
+  }
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  document.getElementById('admin-mobile').textContent = '+91 ' + m.slice(0,2) + '••••' + m.slice(-2);
+  document.getElementById('admin-avatar').textContent = 'AD';
+  return true;
+}
+function logout(){
+  localStorage.removeItem('cancrm-admin-session');
+  location.href = 'admin-login.html';
+}
+
+/* ── Navigation ───────────────────────────────────────────────────────────── */
+function showSection(s){
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.section === s));
+  document.querySelectorAll('.section').forEach(sec => sec.classList.toggle('active', sec.id === 'sec-'+s));
+  renderSection(s);
+  window.scrollTo({top:0});
+}
+
+/* ── Range helpers ────────────────────────────────────────────────────────── */
+function rangeStart(r){
+  const now = Date.now();
+  switch(r){
+    case 'day':   return now - 86400000;
+    case 'week':  return now - 7*86400000;
+    case 'month': return now - 30*86400000;
+    case '3m':    return now - 90*86400000;
+    case '6m':    return now - 180*86400000;
+    case 'year':  return now - 365*86400000;
+    default:      return 0;
+  }
+}
+function rangeLabel(r){
+  return {day:'Last 24h',week:'Last 7 days',month:'Last 30 days','3m':'Last 90 days','6m':'Last 180 days',year:'Last 365 days',all:'All time'}[r] || '';
+}
+function inRange(ts, r){ return ts >= rangeStart(r); }
+
+/* ── Rendering ────────────────────────────────────────────────────────────── */
+function fmtINR(n){
+  if (!n) return '₹0';
+  if (n >= 1e7) return '₹' + (n/1e7).toFixed(2) + ' Cr';
+  if (n >= 1e5) return '₹' + (n/1e5).toFixed(2) + ' L';
+  return '₹' + n.toLocaleString('en-IN');
+}
+function fmtDate(ts){
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'});
+}
+function typeLabel(t){
+  return { 'individual-dsa':'Individual DSA', 'dsa-company':'DSA Company', 'connector':'Connector', 'sub-dsa':'Sub-DSA', 'team-member':'Team', 'accounts':'Accounts', 'nbfc':'NBFC', 'bank':'Bank', 'credit-team':'Credit' }[t] || t;
+}
+function statusBadge(s){
+  if (s === 'active')  return '<span class="badge badge-ok"><span class="dot"></span>Active</span>';
+  if (s === 'hold')    return '<span class="badge badge-warn"><span class="dot"></span>On Hold</span>';
+  return '<span class="badge badge-muted">'+s+'</span>';
+}
+function stageBadge(s){
+  const m = {login:['info','Login'], review:['warn','Review'], sanction:['info','Sanction'], disb:['ok','Disbursed'], hold:['warn','Hold'], rej:['err','Rejected']};
+  const [k,l] = m[s] || ['muted', s];
+  return `<span class="badge badge-${k}"><span class="dot"></span>${l}</span>`;
+}
+
+/* ── Overview ─────────────────────────────────────────────────────────────── */
+function renderOverview(){
+  const borr = DB.borrowers.get();
+  const inR = borr.filter(b => inRange(b.createdAt, S.range));
+  const disb = inR.filter(b => b.stage === 'disb');
+  const vol = disb.reduce((a,b)=>a+b.amount,0);
+  const avg = disb.length ? vol/disb.length : 0;
+  const users = DB.users.get();
+
+  document.getElementById('range-summary').textContent = `${rangeLabel(S.range)} · ${inR.length} files · ${disb.length} disbursed`;
+
+  const kpi = document.getElementById('kpi-grid');
+  kpi.innerHTML = [
+    { l:'Total files',       k: inR.length,                 d: `${borr.length} all-time`, cls:'' },
+    { l:'Disbursed files',   k: disb.length,                d: `${(disb.length/Math.max(1,inR.length)*100).toFixed(0)}% of new files`, cls:'success' },
+    { l:'Disb. volume',      k: fmtINR(vol),                d: `Avg ticket ${fmtINR(avg)}`, cls:'accent' },
+    { l:'Active users',      k: users.filter(u=>u.status==='active').length, d:`${users.filter(u=>u.status==='hold').length} on hold`, cls:'info' },
+    { l:'DSAs & companies',  k: users.filter(u=>['individual-dsa','dsa-company'].includes(u.type)).length, d:'', cls:'' },
+    { l:'Bank desks',        k: users.filter(u=>['bank','nbfc','credit-team'].includes(u.type)).length,     d:'', cls:'' },
+  ].map(x => `
+    <div class="kpi ${x.cls}">
+      <div class="l">${x.l}</div>
+      <div class="k">${x.k}</div>
+      ${x.d?`<div class="d">${x.d}</div>`:''}
+    </div>`).join('');
+
+  // By type
+  const types = ['Business Loan','Personal Loan','Home Loan','LAP'];
+  const tb = document.querySelector('#by-type-table tbody');
+  tb.innerHTML = types.map(t => {
+    const f = inR.filter(b => b.loanType === t);
+    const d = f.filter(b => b.stage === 'disb');
+    const v = d.reduce((a,b)=>a+b.amount,0);
+    const a = d.length ? v/d.length : 0;
+    return `<tr><td><strong>${t}</strong></td><td class="num">${f.length}</td><td class="num">${d.length}</td><td class="num">${fmtINR(v)}</td><td class="num">${fmtINR(a)}</td></tr>`;
+  }).join('') || `<tr><td colspan="5" class="empty" style="background:transparent;border:none">No data</td></tr>`;
+
+  // Top DSAs
+  const by = {};
+  disb.forEach(b => { const k = b.dsaName; (by[k] = by[k] || {name:k, files:0, volume:0, count:0}); by[k].files++; by[k].volume += b.amount; });
+  inR.forEach(b => { if (!by[b.dsaName]) by[b.dsaName] = {name:b.dsaName, files:0, volume:0, count:0}; by[b.dsaName].count++; });
+  const top = Object.values(by).sort((a,b) => b.volume - a.volume).slice(0,8);
+  const td = document.querySelector('#top-dsa-table tbody');
+  td.innerHTML = top.map(x => `<tr><td><strong>${x.name}</strong></td><td class="num">${x.count}</td><td class="num">${x.files}</td><td class="num">${fmtINR(x.volume)}</td></tr>`).join('') || `<tr><td colspan="4" class="empty" style="background:transparent;border:none">No disbursements in range</td></tr>`;
+}
+
+/* ── Users tables ─────────────────────────────────────────────────────────── */
+function filterUsers(kind){
+  const u = DB.users.get();
+  const q = S.search.toLowerCase();
+  const ft = {
+    dsa:     u => ['individual-dsa','dsa-company'].includes(u.type),
+    partner: u => ['connector','sub-dsa'].includes(u.type),
+    team:    u => ['team-member','accounts'].includes(u.type),
+    bank:    u => ['bank','nbfc','credit-team'].includes(u.type),
+  }[kind];
+  return u.filter(ft).filter(x => !q || (x.name+x.mobile+(x.email||'')+(x.dsaName||'')+(x.bankName||'')).toLowerCase().includes(q));
+}
+function renderUserTable(kind, mount){
+  const rows = filterUsers(kind);
+  const host = document.getElementById(mount);
+  if (!rows.length) { host.innerHTML = `<div class="empty" style="margin:14px">No records.</div>`; return; }
+  host.innerHTML = `
+    <table class="table">
+      <thead><tr>
+        <th>Name</th><th>Type</th><th>Mobile</th><th>Email</th>
+        ${kind==='partner' || kind==='team' ? '<th>Attached to</th>' : ''}
+        ${kind==='bank' ? '<th>Bank/NBFC</th>' : ''}
+        <th>Joined</th><th>Status</th><th class="num">Actions</th>
+      </tr></thead>
+      <tbody>${rows.map(r => `
+        <tr>
+          <td><strong>${r.name}</strong></td>
+          <td><span class="badge badge-info">${typeLabel(r.type)}</span></td>
+          <td>+91 ${r.mobile}</td>
+          <td>${r.email||'—'}</td>
+          ${kind==='partner' || kind==='team' ? `<td>${r.dsaName||'—'}</td>` : ''}
+          ${kind==='bank' ? `<td>${r.bankName||'—'}</td>` : ''}
+          <td>${fmtDate(r.createdAt)}</td>
+          <td>${statusBadge(r.status)}</td>
+          <td>
+            <div class="row-actions">
+              <button onclick="editUser('${r.id}')">Edit</button>
+              <button class="warn" onclick="toggleHold('${r.id}')">${r.status==='hold' ? 'Release' : 'Hold'}</button>
+              <button class="danger" onclick="deleteUser('${r.id}')">Delete</button>
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function renderAllUserTables(){
+  renderUserTable('dsa',     'dsa-table-wrap');
+  renderUserTable('partner', 'partner-table-wrap');
+  renderUserTable('team',    'team-table-wrap');
+  renderUserTable('bank',    'bank-table-wrap');
+}
+function updateNavBadges(){
+  document.getElementById('nb-dsa').textContent  = filterUsers('dsa').length;
+  document.getElementById('nb-part').textContent = filterUsers('partner').length;
+  document.getElementById('nb-team').textContent = filterUsers('team').length;
+  document.getElementById('nb-bank').textContent = filterUsers('bank').length;
+  document.getElementById('nb-borr').textContent = DB.borrowers.get().length;
+  document.getElementById('nb-pol').textContent  = DB.policies.get().length;
+  document.getElementById('nb-dump').textContent = DB.dump.get().length;
+  document.getElementById('nb-dir').textContent  = DB.directory.get().length;
+}
+
+/* ── User actions ─────────────────────────────────────────────────────────── */
+function editUser(id){
+  const u = DB.users.get().find(x => x.id === id);
+  if (!u) return;
+  S.editCtx = { kind:'user', id };
+  document.getElementById('modal-title').textContent = 'Edit user — ' + u.name;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="fld-row">
+      <div class="fld"><label>Name</label><input id="mi-name" value="${escAttr(u.name)}"></div>
+      <div class="fld"><label>Type</label>
+        <select id="mi-type">
+          ${['individual-dsa','dsa-company','connector','sub-dsa','team-member','accounts','bank','nbfc','credit-team'].map(t=>`<option value="${t}" ${t===u.type?'selected':''}>${typeLabel(t)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Mobile</label><input id="mi-mobile" value="${escAttr(u.mobile)}"></div>
+      <div class="fld"><label>Email</label><input id="mi-email" value="${escAttr(u.email||'')}"></div>
+    </div>
+    <div class="fld"><label>Parent DSA (if partner/team)</label><input id="mi-dsaname" value="${escAttr(u.dsaName||'')}"></div>
+    <div class="fld"><label>Bank / NBFC (if bank)</label><input id="mi-bankname" value="${escAttr(u.bankName||'')}"></div>
+    <div class="fld"><label>Status</label>
+      <select id="mi-status"><option value="active" ${u.status==='active'?'selected':''}>Active</option><option value="hold" ${u.status==='hold'?'selected':''}>On Hold</option></select>
+    </div>
+  `;
+  document.getElementById('modal-save').onclick = saveUser;
+  openModal();
+}
+function saveUser(){
+  const u = DB.users.get();
+  const i = u.findIndex(x => x.id === S.editCtx.id);
+  if (i < 0) return;
+  u[i].name     = document.getElementById('mi-name').value.trim();
+  u[i].type     = document.getElementById('mi-type').value;
+  u[i].mobile   = document.getElementById('mi-mobile').value.trim();
+  u[i].email    = document.getElementById('mi-email').value.trim();
+  u[i].dsaName  = document.getElementById('mi-dsaname').value.trim() || null;
+  u[i].bankName = document.getElementById('mi-bankname').value.trim() || null;
+  u[i].status   = document.getElementById('mi-status').value;
+  DB.users.set(u);
+  DB.audit.log('edit', 'User: ' + u[i].name, 'Updated user details');
+  closeModal(); refreshAll(); toast('User updated','ok');
+}
+function toggleHold(id){
+  const u = DB.users.get();
+  const i = u.findIndex(x => x.id === id);
+  if (i < 0) return;
+  const was = u[i].status;
+  u[i].status = was === 'hold' ? 'active' : 'hold';
+  DB.users.set(u);
+  DB.audit.log(was === 'hold' ? 'release' : 'hold', 'User: ' + u[i].name, `Status: ${was} → ${u[i].status}`);
+  refreshAll(); toast(u[i].status === 'hold' ? 'User placed on hold' : 'User released','ok');
+}
+function deleteUser(id){
+  if (!confirm('Delete this user? This removes their login access.')) return;
+  const u = DB.users.get();
+  const tgt = u.find(x => x.id === id);
+  DB.users.set(u.filter(x => x.id !== id));
+  DB.audit.log('delete', 'User: ' + (tgt ? tgt.name : id), 'Removed');
+  refreshAll(); toast('User deleted','ok');
+}
+
+function openUserModal(kind){
+  S.editCtx = { kind:'user-new' };
+  document.getElementById('modal-title').textContent = 'Add user';
+  const defType = { dsa:'individual-dsa', partner:'connector', team:'team-member', bank:'bank' }[kind] || 'individual-dsa';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="fld-row">
+      <div class="fld"><label>Name</label><input id="mi-name" placeholder="Full name / Company name"></div>
+      <div class="fld"><label>Type</label>
+        <select id="mi-type">
+          ${['individual-dsa','dsa-company','connector','sub-dsa','team-member','accounts','bank','nbfc','credit-team'].map(t=>`<option value="${t}" ${t===defType?'selected':''}>${typeLabel(t)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Mobile (10 digit)</label><input id="mi-mobile" placeholder="9812345670"></div>
+      <div class="fld"><label>Email</label><input id="mi-email" placeholder="user@domain.in"></div>
+    </div>
+    <div class="fld"><label>Parent DSA</label><input id="mi-dsaname" placeholder="Only for Connector / Sub-DSA / Team / Accounts"></div>
+    <div class="fld"><label>Bank / NBFC</label><input id="mi-bankname" placeholder="Only for Bank / NBFC / Credit Team"></div>
+  `;
+  document.getElementById('modal-save').onclick = () => {
+    const name = document.getElementById('mi-name').value.trim();
+    const mobile = document.getElementById('mi-mobile').value.trim();
+    if (!name) return toast('Name required','err');
+    if (!/^\d{10}$/.test(mobile)) return toast('Mobile must be 10 digits','err');
+    const u = DB.users.get();
+    u.push({
+      id: 'u' + Date.now(),
+      name, type: document.getElementById('mi-type').value,
+      mobile, email: document.getElementById('mi-email').value.trim(),
+      dsaName: document.getElementById('mi-dsaname').value.trim() || null,
+      bankName: document.getElementById('mi-bankname').value.trim() || null,
+      parent: null, status: 'active', createdAt: Date.now(),
+    });
+    DB.users.set(u);
+    DB.audit.log('create', 'User: ' + name, 'Added via admin');
+    closeModal(); refreshAll(); toast('User added','ok');
+  };
+  openModal();
+}
+
+/* ── Borrowers ────────────────────────────────────────────────────────────── */
+function renderBorrowers(){
+  let rows = DB.borrowers.get();
+  const q = S.search.toLowerCase();
+  if (S.borrStage !== 'all') rows = rows.filter(r => r.stage === S.borrStage);
+  if (q) rows = rows.filter(r => (r.name+r.bank+r.loanType+r.dsaName).toLowerCase().includes(q));
+  const tot = rows.length, disb = rows.filter(r=>r.stage==='disb').length, vol = rows.filter(r=>r.stage==='disb').reduce((a,b)=>a+b.amount,0);
+  document.getElementById('borr-summary').textContent = `${tot} files · ${disb} disbursed · ${fmtINR(vol)} volume`;
+  const host = document.getElementById('borr-table-wrap');
+  if (!rows.length) { host.innerHTML = `<div class="empty" style="margin:14px">No records.</div>`; return; }
+  host.innerHTML = `
+    <table class="table">
+      <thead><tr>
+        <th>Borrower</th><th>Loan</th><th>Bank</th><th class="num">Amount</th>
+        <th>DSA</th><th>Stage</th><th>Logged</th><th class="num">Actions</th>
+      </tr></thead>
+      <tbody>${rows.map(b => `
+        <tr>
+          <td><strong>${b.name}</strong><div class="sub">+91 ${b.mobile}</div></td>
+          <td>${b.loanType}</td>
+          <td>${b.bank}</td>
+          <td class="num"><strong>${fmtINR(b.amount)}</strong>${b.disbursed?`<div class="sub">Disb ${fmtDate(b.disbAt)}</div>`:''}</td>
+          <td>${b.dsaName}</td>
+          <td>${stageBadge(b.stage)}</td>
+          <td>${fmtDate(b.createdAt)}</td>
+          <td><div class="row-actions">
+            <button onclick="editBorrower('${b.id}')">Edit</button>
+            <button class="warn" onclick="holdBorrower('${b.id}')">${b.stage==='hold'?'Release':'Hold'}</button>
+            <button class="danger" onclick="deleteBorrower('${b.id}')">Delete</button>
+          </div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function editBorrower(id){
+  const b = DB.borrowers.get().find(x=>x.id===id); if (!b) return;
+  S.editCtx = { kind:'borrower', id };
+  document.getElementById('modal-title').textContent = 'Edit file — ' + b.name;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="fld-row">
+      <div class="fld"><label>Borrower name</label><input id="mi-name" value="${escAttr(b.name)}"></div>
+      <div class="fld"><label>Mobile</label><input id="mi-mobile" value="${escAttr(b.mobile)}"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Loan type</label><select id="mi-ltype">${['Business Loan','Personal Loan','Home Loan','LAP'].map(t=>`<option ${t===b.loanType?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="fld"><label>Bank</label><input id="mi-bank" value="${escAttr(b.bank)}"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Amount (₹)</label><input id="mi-amt" type="number" value="${b.amount}"></div>
+      <div class="fld"><label>Stage</label><select id="mi-stage">${['login','review','sanction','disb','hold','rej'].map(s=>`<option value="${s}" ${s===b.stage?'selected':''}>${s}</option>`).join('')}</select></div>
+    </div>
+    <div class="fld"><label>DSA</label><input id="mi-dsa" value="${escAttr(b.dsaName)}"></div>
+  `;
+  document.getElementById('modal-save').onclick = () => {
+    const arr = DB.borrowers.get();
+    const i = arr.findIndex(x=>x.id===id);
+    arr[i].name = document.getElementById('mi-name').value.trim();
+    arr[i].mobile = document.getElementById('mi-mobile').value.trim();
+    arr[i].loanType = document.getElementById('mi-ltype').value;
+    arr[i].bank = document.getElementById('mi-bank').value.trim();
+    arr[i].amount = +document.getElementById('mi-amt').value;
+    arr[i].stage = document.getElementById('mi-stage').value;
+    arr[i].dsaName = document.getElementById('mi-dsa').value.trim();
+    if (arr[i].stage === 'disb' && !arr[i].disbAt) arr[i].disbAt = Date.now();
+    arr[i].disbursed = arr[i].stage === 'disb' ? arr[i].amount : 0;
+    DB.borrowers.set(arr);
+    DB.audit.log('edit', 'File: '+arr[i].name, 'Stage: '+arr[i].stage);
+    closeModal(); refreshAll(); toast('File updated','ok');
+  };
+  openModal();
+}
+function holdBorrower(id){
+  const arr = DB.borrowers.get(); const i = arr.findIndex(x=>x.id===id); if (i<0) return;
+  arr[i].stage = arr[i].stage === 'hold' ? 'review' : 'hold';
+  DB.borrowers.set(arr);
+  DB.audit.log(arr[i].stage==='hold'?'hold':'release', 'File: '+arr[i].name);
+  refreshAll(); toast('Updated','ok');
+}
+function deleteBorrower(id){
+  if (!confirm('Delete this file?')) return;
+  const arr = DB.borrowers.get(); const tgt = arr.find(x=>x.id===id);
+  DB.borrowers.set(arr.filter(x=>x.id!==id));
+  DB.audit.log('delete', 'File: '+(tgt?tgt.name:id));
+  refreshAll(); toast('File deleted','ok');
+}
+
+/* ── Policies ─────────────────────────────────────────────────────────────── */
+const PCATS = {business:'Business', personal:'Personal', home:'Home', lap:'LAP'};
+function renderPolicies(){
+  let rows = DB.policies.get();
+  if (S.polCat !== 'all') rows = rows.filter(r => r.cat === S.polCat);
+  const q = S.search.toLowerCase();
+  if (q) rows = rows.filter(r => (r.bank+r.cat+r.loc).toLowerCase().includes(q));
+  const host = document.getElementById('pol-table-wrap');
+  if (!rows.length) { host.innerHTML = `<div class="empty" style="margin:14px">No policies.</div>`; return; }
+  host.innerHTML = `
+    <table class="table">
+      <thead><tr><th>Bank / NBFC</th><th>Product</th><th>ROI</th><th>Max Amt</th><th>CIBIL</th><th>TAT</th><th>Payout</th><th>Geo</th><th>Updated</th><th class="num">Actions</th></tr></thead>
+      <tbody>${rows.map(p => `
+        <tr>
+          <td><strong>${p.bank}</strong></td>
+          <td><span class="badge badge-muted">${PCATS[p.cat]||p.cat}</span></td>
+          <td>${p.roi}</td><td>${p.amt}</td><td>${p.cibil}</td><td>${p.tat}</td><td>${p.pay}</td><td>${p.loc}</td>
+          <td>${fmtDate(p.updatedAt)}</td>
+          <td><div class="row-actions">
+            <button onclick="editPolicy('${p.id}')">Edit</button>
+            <button class="danger" onclick="deletePolicy('${p.id}')">Delete</button>
+          </div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function openPolicyModal(){ _policyModal(null); }
+function editPolicy(id){ _policyModal(id); }
+function _policyModal(id){
+  const p = id ? DB.policies.get().find(x=>x.id===id) : { cat:'business', bank:'', roi:'', amt:'', cibil:'', tat:'', pay:'', loc:'', hl:'', con:'' };
+  if (!p) return;
+  S.editCtx = { kind:'policy', id };
+  document.getElementById('modal-title').textContent = id ? 'Edit policy' : 'Add policy';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="fld-row">
+      <div class="fld"><label>Bank / NBFC</label><input id="mp-bank" value="${escAttr(p.bank)}"></div>
+      <div class="fld"><label>Product</label><select id="mp-cat">${Object.entries(PCATS).map(([k,l])=>`<option value="${k}" ${k===p.cat?'selected':''}>${l} Loan</option>`).join('')}</select></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>ROI</label><input id="mp-roi" value="${escAttr(p.roi)}"></div>
+      <div class="fld"><label>Max amount</label><input id="mp-amt" value="${escAttr(p.amt)}"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>CIBIL</label><input id="mp-cibil" value="${escAttr(p.cibil)}"></div>
+      <div class="fld"><label>TAT</label><input id="mp-tat" value="${escAttr(p.tat)}"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Payout %</label><input id="mp-pay" value="${escAttr(p.pay)}"></div>
+      <div class="fld"><label>Geography</label><input id="mp-loc" value="${escAttr(p.loc)}"></div>
+    </div>
+    <div class="fld"><label>Highlights</label><textarea id="mp-hl">${escHtml(p.hl||'')}</textarea></div>
+    <div class="fld"><label>Contact</label><input id="mp-con" value="${escAttr(p.con||'')}"></div>
+  `;
+  document.getElementById('modal-save').onclick = () => {
+    const o = {
+      bank: document.getElementById('mp-bank').value.trim(),
+      cat:  document.getElementById('mp-cat').value,
+      roi:  document.getElementById('mp-roi').value.trim(),
+      amt:  document.getElementById('mp-amt').value.trim(),
+      cibil: document.getElementById('mp-cibil').value.trim(),
+      tat:  document.getElementById('mp-tat').value.trim(),
+      pay:  document.getElementById('mp-pay').value.trim(),
+      loc:  document.getElementById('mp-loc').value.trim(),
+      hl:   document.getElementById('mp-hl').value.trim(),
+      con:  document.getElementById('mp-con').value.trim(),
+      updatedAt: Date.now(),
+    };
+    if (!o.bank) return toast('Bank name required','err');
+    const arr = DB.policies.get();
+    if (id) { const i = arr.findIndex(x=>x.id===id); arr[i] = { ...arr[i], ...o }; DB.audit.log('edit','Policy: '+o.bank); }
+    else    { o.id = 'p'+Date.now(); arr.unshift(o); DB.audit.log('create','Policy: '+o.bank); }
+    DB.policies.set(arr);
+    closeModal(); refreshAll(); toast(id?'Policy updated':'Policy added','ok');
+  };
+  openModal();
+}
+function deletePolicy(id){
+  if (!confirm('Delete policy?')) return;
+  const arr = DB.policies.get(); const t = arr.find(x=>x.id===id);
+  DB.policies.set(arr.filter(x=>x.id!==id));
+  DB.audit.log('delete', 'Policy: '+(t?t.bank:id));
+  refreshAll(); toast('Deleted','ok');
+}
+
+/* ── Files Dump ───────────────────────────────────────────────────────────── */
+function renderDump(){
+  const rows = DB.dump.get();
+  const q = S.search.toLowerCase();
+  const list = q ? rows.filter(r => (r.name+r.btype+r.req).toLowerCase().includes(q)) : rows;
+  const host = document.getElementById('dump-table-wrap');
+  if (!list.length) { host.innerHTML = `<div class="empty" style="margin:14px">No profiles.</div>`; return; }
+  host.innerHTML = `
+    <table class="table">
+      <thead><tr><th>Customer / Business</th><th>Type</th><th class="num">Bank T/O</th><th class="num">GST T/O</th><th class="num">ITR T/O</th><th>Req</th><th>Review</th><th>Created</th><th class="num">Actions</th></tr></thead>
+      <tbody>${list.map(d => `
+        <tr>
+          <td><strong>${d.name}</strong></td>
+          <td>${d.btype}</td>
+          <td class="num">${d.tbank} L</td>
+          <td class="num">${d.tgst} L</td>
+          <td class="num">${d.titr} L</td>
+          <td>${d.req}</td>
+          <td>${d.rdo==='Doable'?'<span class="badge badge-ok">Doable</span>':d.rdo==='Not Doable'?'<span class="badge badge-err">Not Doable</span>':'<span class="badge badge-warn">Review</span>'}</td>
+          <td>${fmtDate(d.createdAt)}</td>
+          <td><div class="row-actions">
+            <button onclick="editDump('${d.id}')">Edit</button>
+            <button class="danger" onclick="deleteDump('${d.id}')">Delete</button>
+          </div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function openDumpModal(){ _dumpModal(null); }
+function editDump(id){ _dumpModal(id); }
+function _dumpModal(id){
+  const d = id ? DB.dump.get().find(x=>x.id===id) : { name:'', btype:'Mfg', tbank:'', tgst:'', titr:'', req:'', rdo:'Review', cat:'business' };
+  if (!d) return;
+  document.getElementById('modal-title').textContent = id ? 'Edit profile' : 'Add profile';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="fld"><label>Customer / business name</label><input id="md-name" value="${escAttr(d.name)}"></div>
+    <div class="fld-row">
+      <div class="fld"><label>Business type</label><select id="md-btype">${['Mfg','Trading','Services','Retail'].map(t=>`<option ${t===d.btype?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="fld"><label>Requirement</label><input id="md-req" value="${escAttr(d.req)}" placeholder="e.g. 25 L"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Banking T/O (L)</label><input id="md-tbank" value="${escAttr(d.tbank)}"></div>
+      <div class="fld"><label>GST T/O (L)</label><input id="md-tgst" value="${escAttr(d.tgst)}"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>ITR T/O (L)</label><input id="md-titr" value="${escAttr(d.titr)}"></div>
+      <div class="fld"><label>Review</label><select id="md-rdo">${['Doable','Not Doable','Review'].map(v=>`<option ${v===d.rdo?'selected':''}>${v}</option>`).join('')}</select></div>
+    </div>
+  `;
+  document.getElementById('modal-save').onclick = () => {
+    const o = {
+      name: document.getElementById('md-name').value.trim(),
+      btype: document.getElementById('md-btype').value,
+      req: document.getElementById('md-req').value.trim(),
+      tbank: document.getElementById('md-tbank').value.trim(),
+      tgst: document.getElementById('md-tgst').value.trim(),
+      titr: document.getElementById('md-titr').value.trim(),
+      rdo: document.getElementById('md-rdo').value,
+      cat: 'business',
+    };
+    if (!o.name) return toast('Name required','err');
+    const arr = DB.dump.get();
+    if (id) { const i = arr.findIndex(x=>x.id===id); arr[i] = { ...arr[i], ...o }; DB.audit.log('edit','Profile: '+o.name); }
+    else    { o.id = 'd'+Date.now(); o.createdAt = Date.now(); arr.unshift(o); DB.audit.log('create','Profile: '+o.name); }
+    DB.dump.set(arr);
+    closeModal(); refreshAll(); toast(id?'Profile updated':'Profile added','ok');
+  };
+  openModal();
+}
+function deleteDump(id){
+  if (!confirm('Delete profile?')) return;
+  const arr = DB.dump.get(); const t = arr.find(x=>x.id===id);
+  DB.dump.set(arr.filter(x=>x.id!==id));
+  DB.audit.log('delete','Profile: '+(t?t.name:id));
+  refreshAll(); toast('Deleted','ok');
+}
+
+/* ── Banker directory ─────────────────────────────────────────────────────── */
+function renderDirectory(){
+  const rows = DB.directory.get();
+  const q = S.search.toLowerCase();
+  const list = q ? rows.filter(r => (r.name+r.bank+r.role+r.city).toLowerCase().includes(q)) : rows;
+  const host = document.getElementById('dir-table-wrap');
+  if (!list.length) { host.innerHTML = `<div class="empty" style="margin:14px">No bankers.</div>`; return; }
+  host.innerHTML = `
+    <table class="table">
+      <thead><tr><th>Banker</th><th>Bank</th><th>Role</th><th>City</th><th>Mobile</th><th>Email</th><th>Updated</th><th class="num">Actions</th></tr></thead>
+      <tbody>${list.map(r => `
+        <tr>
+          <td><strong>${r.name}</strong></td><td>${r.bank}</td><td>${r.role}</td><td>${r.city}</td>
+          <td>+91 ${r.mobile}</td><td>${r.email}</td><td>${fmtDate(r.updatedAt)}</td>
+          <td><div class="row-actions">
+            <button onclick="editBanker('${r.id}')">Edit</button>
+            <button class="danger" onclick="deleteBanker('${r.id}')">Delete</button>
+          </div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function openBankerModal(){ _bankerModal(null); }
+function editBanker(id){ _bankerModal(id); }
+function _bankerModal(id){
+  const b = id ? DB.directory.get().find(x=>x.id===id) : { name:'', bank:'', role:'', city:'', mobile:'', email:'' };
+  if (!b) return;
+  document.getElementById('modal-title').textContent = id ? 'Edit banker' : 'Add banker';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="fld-row">
+      <div class="fld"><label>Banker name</label><input id="mb-name" value="${escAttr(b.name)}"></div>
+      <div class="fld"><label>Bank</label><input id="mb-bank" value="${escAttr(b.bank)}"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Role</label><input id="mb-role" value="${escAttr(b.role)}"></div>
+      <div class="fld"><label>City</label><input id="mb-city" value="${escAttr(b.city)}"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Mobile</label><input id="mb-mobile" value="${escAttr(b.mobile)}"></div>
+      <div class="fld"><label>Email</label><input id="mb-email" value="${escAttr(b.email)}"></div>
+    </div>
+  `;
+  document.getElementById('modal-save').onclick = () => {
+    const o = {
+      name: document.getElementById('mb-name').value.trim(),
+      bank: document.getElementById('mb-bank').value.trim(),
+      role: document.getElementById('mb-role').value.trim(),
+      city: document.getElementById('mb-city').value.trim(),
+      mobile: document.getElementById('mb-mobile').value.trim(),
+      email: document.getElementById('mb-email').value.trim(),
+      updatedAt: Date.now(),
+    };
+    if (!o.name || !o.bank) return toast('Name and bank required','err');
+    const arr = DB.directory.get();
+    if (id) { const i = arr.findIndex(x=>x.id===id); arr[i] = { ...arr[i], ...o }; DB.audit.log('edit','Banker: '+o.name); }
+    else    { o.id = 'r'+Date.now(); arr.unshift(o); DB.audit.log('create','Banker: '+o.name); }
+    DB.directory.set(arr);
+    closeModal(); refreshAll(); toast(id?'Banker updated':'Banker added','ok');
+  };
+  openModal();
+}
+function deleteBanker(id){
+  if (!confirm('Delete banker?')) return;
+  const arr = DB.directory.get(); const t = arr.find(x=>x.id===id);
+  DB.directory.set(arr.filter(x=>x.id!==id));
+  DB.audit.log('delete','Banker: '+(t?t.name:id));
+  refreshAll(); toast('Deleted','ok');
+}
+
+/* ── Payouts ─────────────────────────────────────────────────────────────── */
+function renderPayouts(){
+  const rows = DB.payouts.get();
+  const host = document.getElementById('pay-table-wrap');
+  if (!rows.length) { host.innerHTML = `<div class="empty" style="margin:14px">No payouts.</div>`; return; }
+  host.innerHTML = `
+    <table class="table">
+      <thead><tr><th>Customer</th><th>DSA</th><th>Loan</th><th class="num">Amount</th><th class="num">%</th><th class="num">Gross</th><th>Status</th><th>Date</th><th class="num">Actions</th></tr></thead>
+      <tbody>${rows.map(p => `
+        <tr>
+          <td><strong>${p.name}</strong></td><td>${p.dsaName}</td><td>${p.loanType}</td>
+          <td class="num">${fmtINR(p.amount)}</td><td class="num">${p.pct}%</td>
+          <td class="num"><strong>${fmtINR(Math.round(p.amount*p.pct/100))}</strong></td>
+          <td>${p.paid?'<span class="badge badge-ok">Paid</span>':'<span class="badge badge-warn">Pending</span>'}</td>
+          <td>${fmtDate(p.at)}</td>
+          <td><div class="row-actions">
+            <button class="warn" onclick="togglePaid('${p.id}')">${p.paid?'Mark pending':'Mark paid'}</button>
+            <button class="danger" onclick="deletePayout('${p.id}')">Delete</button>
+          </div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function togglePaid(id){
+  const arr = DB.payouts.get(); const i = arr.findIndex(x=>x.id===id);
+  arr[i].paid = !arr[i].paid; DB.payouts.set(arr);
+  DB.audit.log('edit','Payout: '+arr[i].name,'Status: '+(arr[i].paid?'Paid':'Pending'));
+  refreshAll(); toast('Updated','ok');
+}
+function deletePayout(id){
+  if (!confirm('Delete payout?')) return;
+  const arr = DB.payouts.get(); const t = arr.find(x=>x.id===id);
+  DB.payouts.set(arr.filter(x=>x.id!==id));
+  DB.audit.log('delete','Payout: '+(t?t.name:id));
+  refreshAll(); toast('Deleted','ok');
+}
+
+/* ── Reports page ─────────────────────────────────────────────────────────── */
+function renderReports(){
+  // DSA filter options
+  const dsaSel = document.getElementById('rep-dsa-filter');
+  const allUsers = DB.users.get().filter(u => ['individual-dsa','dsa-company','connector','sub-dsa'].includes(u.type));
+  dsaSel.innerHTML = '<option value="">All DSAs / Partners</option>' + allUsers.map(u=>`<option value="${u.id}" ${u.id===S.repDsa?'selected':''}>${u.name}</option>`).join('');
+
+  // KPIs
+  let borr = DB.borrowers.get().filter(b => inRange(b.createdAt, S.repRange));
+  if (S.repDsa) borr = borr.filter(b => b.dsaId === S.repDsa);
+  const disb = borr.filter(b=>b.stage==='disb');
+  const vol = disb.reduce((a,b)=>a+b.amount,0);
+  document.getElementById('reports-kpi').innerHTML = [
+    { l:'Range',        k: rangeLabel(S.repRange), cls:'' },
+    { l:'Files in range',     k: borr.length,               cls:'info' },
+    { l:'Disbursed',          k: disb.length,               cls:'success' },
+    { l:'Volume',             k: fmtINR(vol),               cls:'accent' },
+  ].map(x => `<div class="kpi ${x.cls}"><div class="l">${x.l}</div><div class="k" style="font-size:${x.k.length>10?'18px':'24px'}">${x.k}</div></div>`).join('');
+
+  const reports = [
+    { k:'borrowers', t:'Borrowers &amp; Files', d:'Every file with borrower, amount, stage, DSA' },
+    { k:'disbursed', t:'Disbursements only',    d:'Only files with stage = Disbursed' },
+    { k:'policies',  t:'Bank Policies',         d:'All saved policies (per product)' },
+    { k:'dump',      t:'Files Dump profiles',   d:'Credit-review profile queue' },
+    { k:'directory', t:'Banker Directory',      d:'Banker RMs, roles, contacts' },
+    { k:'payouts',   t:'Payouts',               d:'Commissions with paid/pending status' },
+    { k:'dsas',      t:'DSAs &amp; Companies',  d:'All DSA and DSA Company accounts' },
+    { k:'partners',  t:'Connectors / Sub-DSA',  d:'Partner accounts' },
+    { k:'team',      t:'Team / Accounts',       d:'Internal team users' },
+    { k:'banks',     t:'Banks / NBFC',          d:'Lender desk accounts' },
+    { k:'audit',     t:'Admin audit log',       d:'Every admin action' },
+  ];
+  document.getElementById('reports-grid').innerHTML = reports.map(r => `
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head"><h3>${r.t}</h3></div>
+      <div class="card-body">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${r.d}</div>
+        <button class="btn btn-primary btn-sm" style="width:100%" onclick="exportExcel('${r.k}')">⬇ Download Excel</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ── Audit ────────────────────────────────────────────────────────────────── */
+function renderAudit(){
+  const rows = DB.audit.get();
+  const host = document.getElementById('audit-table-wrap');
+  if (!rows.length) { host.innerHTML = `<div class="empty" style="margin:14px">No admin actions yet.</div>`; return; }
+  host.innerHTML = `
+    <table class="table">
+      <thead><tr><th>When</th><th>Admin</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
+      <tbody>${rows.map(l => `
+        <tr>
+          <td>${new Date(l.at).toLocaleString('en-IN')}</td>
+          <td>+91 ${l.by}</td>
+          <td><span class="badge badge-${auditBadge(l.action)}">${l.action}</span></td>
+          <td>${escHtml(l.target)}</td>
+          <td>${escHtml(l.details||'')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function auditBadge(a){ return ({create:'ok',edit:'info',delete:'err',hold:'warn',release:'ok'})[a] || 'muted'; }
+function clearAudit(){
+  if (!confirm('Clear full audit log?')) return;
+  DB.audit.set([]); refreshAll(); toast('Audit log cleared','ok');
+}
+
+/* ── Excel export ─────────────────────────────────────────────────────────── */
+function exportExcel(kind){
+  if (typeof XLSX === 'undefined') { toast('Excel library not loaded','err'); return; }
+  const { rows, name } = collectExport(kind);
+  if (!rows.length) { toast('No rows to export','err'); return; }
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, name.slice(0,31));
+  const dt = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `cancrm-admin-${name.toLowerCase().replace(/\s+/g,'-')}-${dt}.xlsx`);
+  DB.audit.log('export', 'Excel: '+name, rows.length+' rows');
+  toast('Exported '+rows.length+' rows','ok');
+}
+function collectExport(kind){
+  const r = S.repRange; const dsaId = S.repDsa;
+  switch(kind){
+    case 'dsas': return { name:'DSAs', rows: filterUsers('dsa').map(u => ({ Name:u.name, Type:typeLabel(u.type), Mobile:u.mobile, Email:u.email||'', Status:u.status, Joined:fmtDate(u.createdAt) })) };
+    case 'partners': return { name:'Partners', rows: filterUsers('partner').map(u => ({ Name:u.name, Type:typeLabel(u.type), Mobile:u.mobile, Email:u.email||'', 'Parent DSA':u.dsaName||'', Status:u.status, Joined:fmtDate(u.createdAt) })) };
+    case 'team': return { name:'Team', rows: filterUsers('team').map(u => ({ Name:u.name, Type:typeLabel(u.type), Mobile:u.mobile, Email:u.email||'', 'Parent DSA':u.dsaName||'', Status:u.status, Joined:fmtDate(u.createdAt) })) };
+    case 'banks': return { name:'Banks', rows: filterUsers('bank').map(u => ({ Name:u.name, Type:typeLabel(u.type), 'Bank/NBFC':u.bankName||'', Mobile:u.mobile, Email:u.email||'', Status:u.status, Joined:fmtDate(u.createdAt) })) };
+    case 'borrowers': {
+      let b = DB.borrowers.get().filter(x => inRange(x.createdAt, r));
+      if (dsaId) b = b.filter(x => x.dsaId === dsaId);
+      return { name:'Borrowers', rows: b.map(x => ({ Name:x.name, Mobile:x.mobile, Loan:x.loanType, Bank:x.bank, Amount:x.amount, Stage:x.stage, DSA:x.dsaName, Logged:fmtDate(x.createdAt), Disbursed:x.disbAt?fmtDate(x.disbAt):'' })) };
+    }
+    case 'disbursed': {
+      let b = DB.borrowers.get().filter(x => x.stage==='disb' && inRange(x.disbAt||x.createdAt, r));
+      if (dsaId) b = b.filter(x => x.dsaId === dsaId);
+      return { name:'Disbursements', rows: b.map(x => ({ Name:x.name, Loan:x.loanType, Bank:x.bank, Amount:x.amount, DSA:x.dsaName, Disbursed:fmtDate(x.disbAt) })) };
+    }
+    case 'policies': {
+      let p = DB.policies.get();
+      if (S.polCat !== 'all') p = p.filter(x => x.cat === S.polCat);
+      return { name:'Policies', rows: p.map(x => ({ Bank:x.bank, Product:PCATS[x.cat], ROI:x.roi, MaxAmt:x.amt, CIBIL:x.cibil, TAT:x.tat, Payout:x.pay, Geo:x.loc, Contact:x.con, Updated:fmtDate(x.updatedAt) })) };
+    }
+    case 'dump':      return { name:'FilesDump', rows: DB.dump.get().map(x => ({ Name:x.name, Type:x.btype, BankTO:x.tbank, GSTTO:x.tgst, ITRTO:x.titr, Req:x.req, Review:x.rdo, Created:fmtDate(x.createdAt) })) };
+    case 'directory': return { name:'Directory', rows: DB.directory.get().map(x => ({ Name:x.name, Bank:x.bank, Role:x.role, City:x.city, Mobile:x.mobile, Email:x.email, Updated:fmtDate(x.updatedAt) })) };
+    case 'payouts':   return { name:'Payouts', rows: DB.payouts.get().map(x => ({ Name:x.name, DSA:x.dsaName, Loan:x.loanType, Amount:x.amount, Pct:x.pct, Gross:Math.round(x.amount*x.pct/100), Status:x.paid?'Paid':'Pending', Date:fmtDate(x.at) })) };
+    case 'audit':     return { name:'Audit', rows: DB.audit.get().map(x => ({ When:new Date(x.at).toLocaleString('en-IN'), Admin:x.by, Action:x.action, Target:x.target, Details:x.details })) };
+    case 'top-dsas': {
+      const borr = DB.borrowers.get().filter(b => inRange(b.createdAt, S.range));
+      const by = {};
+      borr.forEach(b => { const k = b.dsaName; by[k] = by[k] || {DSA:k,Files:0,Disbursed:0,Volume:0}; by[k].Files++; if (b.stage==='disb'){ by[k].Disbursed++; by[k].Volume += b.amount; } });
+      return { name:'TopDSAs', rows: Object.values(by).sort((a,b) => b.Volume - a.Volume) };
+    }
+    default: return { name:'Export', rows: [] };
+  }
+}
+
+/* ── Modal helpers ────────────────────────────────────────────────────────── */
+function openModal(){ document.getElementById('modal').classList.add('on'); }
+function closeModal(){ document.getElementById('modal').classList.remove('on'); }
+
+/* ── Misc ─────────────────────────────────────────────────────────────────── */
+function escHtml(s){ return String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function escAttr(s){ return escHtml(s); }
+let toastT;
+function toast(msg,kind){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show'+(kind?' '+kind:'');
+  clearTimeout(toastT); toastT = setTimeout(()=>t.className='toast',2400);
+}
+
+/* ── Dispatcher ───────────────────────────────────────────────────────────── */
+function renderSection(s){
+  if (s === 'overview')   renderOverview();
+  if (['dsas','partners','team','banks'].includes(s)) renderAllUserTables();
+  if (s === 'borrowers')  renderBorrowers();
+  if (s === 'policies')   renderPolicies();
+  if (s === 'dump')       renderDump();
+  if (s === 'directory')  renderDirectory();
+  if (s === 'payouts')    renderPayouts();
+  if (s === 'reports')    renderReports();
+  if (s === 'audit')      renderAudit();
+}
+function refreshAll(){
+  updateNavBadges();
+  const active = document.querySelector('.nav-item.active');
+  renderSection(active ? active.dataset.section : 'overview');
+}
+
+/* ── Boot ─────────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  if (!checkGate()) return;
+  seedIfEmpty();
+
+  // Sidebar nav
+  document.querySelectorAll('.nav-item').forEach(n => n.addEventListener('click', () => showSection(n.dataset.section)));
+
+  // Range seg (overview)
+  document.querySelectorAll('#range-seg button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#range-seg button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      S.range = b.dataset.range;
+      renderOverview();
+    });
+  });
+  // Reports range seg
+  document.querySelectorAll('#rep-range-seg button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#rep-range-seg button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      S.repRange = b.dataset.range;
+      renderReports();
+    });
+  });
+  // Borrower stage seg
+  document.querySelectorAll('#borr-stage-seg button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#borr-stage-seg button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      S.borrStage = b.dataset.stage;
+      renderBorrowers();
+    });
+  });
+  // Policy cat seg
+  document.querySelectorAll('#pol-cat-seg button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#pol-cat-seg button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      S.polCat = b.dataset.cat;
+      renderPolicies();
+    });
+  });
+
+  document.getElementById('rep-dsa-filter').addEventListener('change', e => { S.repDsa = e.target.value; renderReports(); });
+
+  document.getElementById('admin-search').addEventListener('input', e => {
+    S.search = e.target.value;
+    refreshAll();
+  });
+
+  // Close modal on backdrop click
+  document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  updateNavBadges();
+  renderOverview();
+});

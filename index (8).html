@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAN-CRM — Sign in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens (matches dashboard "Pragmatic Ledger" system) ───────────────── */
+:root{
+  --bg:#FAFAF6; --surface:#FFFFFF; --surface-2:#F3F5F2;
+  --primary:#1C4530; --primary-hover:#153826; --primary-muted:#E8F0EB;
+  --accent:#C97A2A; --accent-hover:#AE6822; --accent-muted:#FDF3E7;
+  --border:#DDE5E1; --border-strong:#BFD0C8;
+  --text-primary:#18231E; --text-secondary:#536960; --text-muted:#8FA898;
+  --success:#1A7A4A; --success-bg:#E6F5EE;
+  --warning:#C97A2A; --warning-bg:#FDF3E7;
+  --error:#C63927; --error-bg:#FDECEA;
+  --info:#1C6B9E; --info-bg:#E8F2FA;
+  --shadow-sm:0 1px 2px rgba(28,69,48,.06);
+  --shadow-md:0 4px 12px rgba(28,69,48,.08);
+  --shadow-lg:0 12px 32px rgba(28,69,48,.12);
+  --font-display:'Instrument Sans',system-ui,sans-serif;
+  --font-body:'DM Sans',system-ui,sans-serif;
+  --radius-sm:4px; --radius-md:8px; --radius-lg:12px; --radius-full:9999px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--font-body);
+  background:var(--bg);
+  color:var(--text-primary);
+  line-height:1.5;
+  min-height:100vh;
+  display:flex;
+  overflow-x:hidden;
+}
+
+/* ── Split screen ───────────────────────────────────────────────────────── */
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:100%;min-height:100vh}
+@media (max-width:920px){.split{grid-template-columns:1fr}.brand{display:none}}
+
+/* ── Brand side ─────────────────────────────────────────────────────────── */
+.brand{
+  background:var(--primary);
+  color:#fff;
+  padding:48px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  position:relative;
+  overflow:hidden;
+}
+.brand::before{
+  content:'';
+  position:absolute;
+  inset:-40% -20% auto auto;
+  width:70%;
+  height:70%;
+  background:radial-gradient(circle at center,rgba(201,122,42,.22),transparent 60%);
+  pointer-events:none;
+}
+.brand::after{
+  content:'';
+  position:absolute;
+  left:-160px; bottom:-160px;
+  width:480px; height:480px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:50%;
+  pointer-events:none;
+}
+.brand-mark{
+  display:inline-flex;align-items:center;gap:10px;position:relative;z-index:1;
+}
+.brand-mark .logo-mark{
+  width:34px;height:34px;background:#fff;color:var(--primary);
+  border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);font-weight:700;font-size:12px;letter-spacing:-.02em;
+}
+.brand-mark .wordmark{
+  font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:-.01em;
+}
+.brand-body{position:relative;z-index:1;max-width:460px}
+.brand-eyebrow{
+  font-family:var(--font-body);font-size:11px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.6);
+  margin-bottom:18px;
+}
+.brand-headline{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(30px,4.2vw,46px);line-height:1.08;letter-spacing:-.02em;
+  color:#fff;margin-bottom:18px;
+}
+.brand-headline em{font-style:italic;color:var(--accent);font-weight:500}
+.brand-sub{color:rgba(255,255,255,.72);font-size:15px;line-height:1.55;max-width:420px}
+.brand-stats{
+  position:relative;z-index:1;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:20px;padding-top:28px;border-top:1px solid rgba(255,255,255,.12);
+}
+.brand-stats .k{font-family:var(--font-display);font-weight:700;font-size:22px;color:#fff}
+.brand-stats .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-top:4px}
+
+/* ── Form side ──────────────────────────────────────────────────────────── */
+.form-side{
+  background:var(--bg);
+  padding:40px 48px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:stretch;
+  position:relative;
+}
+@media (max-width:560px){.form-side{padding:28px 20px}}
+.form-topbar{
+  position:absolute;top:24px;right:28px;left:28px;
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:12px;color:var(--text-muted);
+}
+.form-topbar .mobile-brand{display:none;align-items:center;gap:8px}
+@media (max-width:920px){.form-topbar .mobile-brand{display:inline-flex}}
+.form-topbar .mobile-brand .logo-mark{
+  width:26px;height:26px;background:var(--primary);color:#fff;
+  border-radius:5px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);font-weight:700;font-size:10px;
+}
+.form-topbar .mobile-brand .wordmark{font-family:var(--font-display);font-weight:700;color:var(--primary);font-size:14px}
+.form-topbar a{color:var(--primary);text-decoration:none;font-weight:600}
+.form-topbar a:hover{text-decoration:underline}
+
+.card{
+  width:100%;
+  max-width:420px;
+  margin:0 auto;
+}
+
+.step-header{margin-bottom:26px}
+.step-eyebrow{
+  font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:10px;
+}
+.step-title{
+  font-family:var(--font-display);font-weight:700;
+  font-size:30px;line-height:1.1;letter-spacing:-.02em;
+  color:var(--text-primary);
+}
+.step-sub{
+  font-size:14px;color:var(--text-secondary);margin-top:6px;
+  line-height:1.55;
+}
+
+/* Form primitives */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.field label, .field-row label{
+  font-size:12px;font-weight:600;color:var(--text-secondary);
+  letter-spacing:.01em;
+}
+.field label .req, .field-row label .req{color:var(--error);margin-left:2px}
+.input, .select{
+  width:100%;
+  padding:11px 14px;
+  font-family:var(--font-body);
+  font-size:14px;
+  color:var(--text-primary);
+  background:var(--surface);
+  border:1px solid var(--border-strong);
+  border-radius:var(--radius-md);
+  outline:none;
+  transition:border-color .15s, box-shadow .15s, background .15s;
+}
+.input::placeholder{color:var(--text-muted)}
+.input:focus, .select:focus{
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px var(--primary-muted);
+  background:#fff;
+}
+.input.err{border-color:var(--error);box-shadow:0 0 0 3px var(--error-bg)}
+
+/* Prefix group for phone */
+.input-prefix{
+  display:flex;align-items:stretch;
+  border:1px solid var(--border-strong);
+  border-radius:var(--radius-md);
+  background:var(--surface);
+  overflow:hidden;
+  transition:border-color .15s, box-shadow .15s;
+}
+.input-prefix:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-muted)}
+.input-prefix .prefix{
+  display:flex;align-items:center;gap:6px;
+  padding:0 12px;background:var(--surface-2);
+  border-right:1px solid var(--border);
+  font-size:13px;font-weight:600;color:var(--text-secondary);
+  font-variant-numeric:tabular-nums;
+}
+.input-prefix .prefix .flag{
+  width:18px;height:12px;border-radius:2px;overflow:hidden;display:inline-flex;flex-direction:column;
+}
+.input-prefix .prefix .flag span{flex:1}
+.input-prefix .prefix .flag .s1{background:#FF9933}
+.input-prefix .prefix .flag .s2{background:#fff;position:relative}
+.input-prefix .prefix .flag .s2::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center, #000080 0 2px, transparent 3px)}
+.input-prefix .prefix .flag .s3{background:#138808}
+.input-prefix .input{
+  border:none;box-shadow:none;border-radius:0;background:transparent;flex:1;min-width:0;
+}
+.input-prefix .input:focus{box-shadow:none;background:transparent}
+
+/* Password field */
+.input-wrap{position:relative}
+.input-wrap .toggle-eye{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:transparent;border:none;cursor:pointer;color:var(--text-muted);
+  font-size:12px;font-weight:600;padding:4px 6px;border-radius:4px;
+}
+.input-wrap .toggle-eye:hover{color:var(--primary);background:var(--primary-muted)}
+
+/* OTP boxes */
+.otp-row{display:flex;gap:10px;justify-content:space-between;margin:4px 0 8px}
+.otp-row input{
+  flex:1;min-width:0;text-align:center;font-variant-numeric:tabular-nums;
+  font-family:var(--font-display);font-size:20px;font-weight:600;
+  padding:14px 0;
+}
+.otp-meta{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:12px;color:var(--text-muted);margin-top:-4px;margin-bottom:14px;
+}
+.otp-meta .resend{
+  background:none;border:none;padding:0;cursor:pointer;
+  font-family:var(--font-body);font-size:12px;font-weight:600;
+  color:var(--text-muted);
+}
+.otp-meta .resend.ready{color:var(--accent)}
+.otp-meta .resend.ready:hover{text-decoration:underline}
+.otp-meta .resend:disabled{cursor:not-allowed}
+.otp-hint{
+  background:var(--info-bg);border:1px solid rgba(28,107,158,.18);
+  color:var(--info);font-size:12px;padding:8px 12px;border-radius:var(--radius-md);
+  margin-bottom:14px;line-height:1.45;
+}
+.otp-hint strong{font-weight:700}
+
+/* Strength meter */
+.pw-strength{display:flex;gap:4px;margin:6px 0 0}
+.pw-strength span{
+  flex:1;height:4px;border-radius:2px;background:var(--border);
+  transition:background .2s;
+}
+.pw-strength.s1 span:nth-child(1){background:var(--error)}
+.pw-strength.s2 span:nth-child(-n+2){background:var(--warning)}
+.pw-strength.s3 span:nth-child(-n+3){background:var(--accent)}
+.pw-strength.s4 span{background:var(--success)}
+.pw-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:6px}
+.pw-meta .label{font-weight:600}
+.pw-meta .label.s1{color:var(--error)}
+.pw-meta .label.s2{color:var(--warning)}
+.pw-meta .label.s3{color:var(--accent)}
+.pw-meta .label.s4{color:var(--success)}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;padding:12px 16px;
+  font-family:var(--font-body);font-size:14px;font-weight:600;
+  border:1px solid transparent;border-radius:var(--radius-md);
+  cursor:pointer;transition:all .15s;
+}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-hover);border-color:var(--primary-hover)}
+.btn-primary:disabled{background:var(--border);border-color:var(--border);color:var(--text-muted);cursor:not-allowed}
+.btn-secondary{background:transparent;color:var(--text-secondary);border-color:var(--border-strong)}
+.btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+
+/* Row of small actions */
+.row-between{display:flex;align-items:center;justify-content:space-between;margin:4px 0 18px;gap:12px}
+.checkbox{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);cursor:pointer;user-select:none}
+.checkbox input{accent-color:var(--primary);width:15px;height:15px;cursor:pointer}
+.link{
+  background:none;border:none;padding:0;
+  font-family:var(--font-body);font-size:13px;font-weight:600;
+  color:var(--primary);text-decoration:none;cursor:pointer;
+}
+.link:hover{color:var(--accent)}
+.link.accent{color:var(--accent)}
+.link.accent:hover{color:var(--accent-hover)}
+.link.muted{color:var(--text-secondary)}
+.link.muted:hover{color:var(--primary)}
+
+/* Divider text */
+.divider{
+  display:flex;align-items:center;gap:12px;margin:22px 0;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);
+}
+.divider::before, .divider::after{
+  content:'';flex:1;height:1px;background:var(--border);
+}
+
+.foot-cta{
+  text-align:center;font-size:13px;color:var(--text-secondary);margin-top:18px;
+}
+
+/* Sub-step navigation (back) */
+.back-link{
+  display:inline-flex;align-items:center;gap:6px;
+  background:none;border:none;padding:4px 8px;margin:-4px 0 12px -8px;
+  font-family:var(--font-body);font-size:12px;font-weight:600;
+  color:var(--text-muted);cursor:pointer;border-radius:6px;
+}
+.back-link:hover{color:var(--primary);background:var(--primary-muted)}
+.back-link svg{width:12px;height:12px}
+
+/* Type grid for registration */
+.type-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;
+}
+.type-card{
+  padding:10px 12px;
+  background:var(--surface);
+  border:1px solid var(--border-strong);
+  border-radius:var(--radius-md);
+  cursor:pointer;
+  transition:all .15s;
+  display:flex;flex-direction:column;gap:3px;
+  text-align:left;
+  position:relative;
+}
+.type-card:hover{border-color:var(--primary);background:var(--primary-muted)}
+.type-card.active{
+  border-color:var(--primary);background:var(--primary-muted);
+  box-shadow:0 0 0 3px var(--primary-muted);
+}
+.type-card .t-name{font-size:13px;font-weight:600;color:var(--text-primary);line-height:1.2}
+.type-card .t-meta{font-size:10.5px;color:var(--text-muted);letter-spacing:.02em}
+.type-card.active .t-meta{color:var(--primary)}
+.type-card .t-dot{
+  position:absolute;top:10px;right:10px;
+  width:14px;height:14px;border-radius:50%;
+  border:1.5px solid var(--border-strong);
+  background:var(--surface);
+  transition:all .15s;
+}
+.type-card.active .t-dot{
+  border-color:var(--primary);
+  background:var(--primary);
+  box-shadow:inset 0 0 0 3px #fff;
+}
+
+/* Step screen container (slide transition) */
+.screen{display:none;animation:fadeIn .22s ease-out}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* Toast */
+.toast{
+  position:fixed;top:24px;left:50%;transform:translateX(-50%);
+  padding:10px 18px;border-radius:var(--radius-md);
+  background:var(--primary);color:#fff;font-size:13px;font-weight:500;
+  box-shadow:var(--shadow-lg);z-index:1000;opacity:0;pointer-events:none;
+  transition:opacity .2s, transform .2s;
+}
+.toast.show{opacity:1;transform:translate(-50%, 6px)}
+.toast.err{background:var(--error)}
+.toast.ok{background:var(--success)}
+
+/* Footer fine print */
+.legal{
+  font-size:11px;color:var(--text-muted);text-align:center;
+  margin-top:30px;line-height:1.6;max-width:360px;margin-left:auto;margin-right:auto;
+}
+.legal a{color:var(--text-secondary);text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div class="split">
+
+  <!-- ──────────────────────────── BRAND ──────────────────────────── -->
+  <aside class="brand">
+    <div class="brand-mark">
+      <span class="logo-mark">CC</span>
+      <span class="wordmark">CAN-CRM</span>
+    </div>
+
+    <div class="brand-body">
+      <div class="brand-eyebrow">DSA · Connector · NBFC Desk</div>
+      <h1 class="brand-headline">
+        The pragmatic <em>ledger</em><br/>
+        for loan pipelines.
+      </h1>
+      <p class="brand-sub">
+        One place for files, payouts, bank policies and credit reviews —
+        built for DSA offices, sub-DSAs, connectors and bank desks.
+      </p>
+    </div>
+
+    <div class="brand-stats">
+      <div><div class="k">320+</div><div class="l">Active DSAs</div></div>
+      <div><div class="k">48</div><div class="l">NBFC / Bank desks</div></div>
+      <div><div class="k">₹1,400Cr</div><div class="l">Disbursed YTD</div></div>
+    </div>
+  </aside>
+
+  <!-- ──────────────────────────── FORM SIDE ──────────────────────────── -->
+  <main class="form-side">
+
+    <div class="form-topbar">
+      <span class="mobile-brand">
+        <span class="logo-mark">CC</span>
+        <span class="wordmark">CAN-CRM</span>
+      </span>
+      <span id="topbar-cta">
+        New here? <a href="#" onclick="goTo('register');return false;">Create an account</a>
+      </span>
+    </div>
+
+    <div class="card">
+
+      <!-- ═════════════ SCREEN: LOGIN ═════════════ -->
+      <section class="screen active" id="screen-login" data-screen-label="01 Login">
+        <div class="step-header">
+          <div class="step-eyebrow">Welcome back</div>
+          <h2 class="step-title">Sign in to CAN-CRM</h2>
+          <p class="step-sub">Use the mobile number you registered with.</p>
+        </div>
+
+        <form onsubmit="handleLogin(event)" novalidate>
+          <div class="field">
+            <label for="li-mobile">Mobile number <span class="req">*</span></label>
+            <div class="input-prefix">
+              <span class="prefix">
+                <span class="flag"><span class="s1"></span><span class="s2"></span><span class="s3"></span></span>
+                +91
+              </span>
+              <input class="input" id="li-mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile" autocomplete="tel-national" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="li-pw">Password <span class="req">*</span></label>
+            <div class="input-wrap">
+              <input class="input" id="li-pw" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+              <button type="button" class="toggle-eye" onclick="togglePw('li-pw',this)">Show</button>
+            </div>
+          </div>
+
+          <div class="row-between">
+            <label class="checkbox"><input type="checkbox" id="li-remember" checked> Keep me signed in</label>
+            <button type="button" class="link accent" onclick="goTo('forgot-1')">Forgot password?</button>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Sign in</button>
+        </form>
+
+        <div class="divider">or</div>
+
+        <div class="foot-cta">
+          New user?
+          <button type="button" class="link" onclick="goTo('register')">Create an account</button>
+        </div>
+
+        <p class="legal">
+          By continuing you agree to the <a href="#">Terms</a> and
+          <a href="#">Privacy Policy</a>. This is a demo interface —
+          no real credentials are submitted.
+        </p>
+      </section>
+
+      <!-- ═════════════ SCREEN: FORGOT PW — STEP 1 (mobile) ═════════════ -->
+      <section class="screen" id="screen-forgot-1" data-screen-label="02 Forgot Password · Mobile">
+        <button type="button" class="back-link" onclick="goTo('login')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          Back to sign in
+        </button>
+        <div class="step-header">
+          <div class="step-eyebrow">Reset password · Step 1 of 2</div>
+          <h2 class="step-title">Forgot your password?</h2>
+          <p class="step-sub">Enter your registered mobile number and we'll send an OTP.</p>
+        </div>
+
+        <form onsubmit="handleForgotStep1(event)" novalidate>
+          <div class="field">
+            <label for="fg-mobile">Mobile number <span class="req">*</span></label>
+            <div class="input-prefix">
+              <span class="prefix">
+                <span class="flag"><span class="s1"></span><span class="s2"></span><span class="s3"></span></span>
+                +91
+              </span>
+              <input class="input" id="fg-mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Send OTP</button>
+        </form>
+      </section>
+
+      <!-- ═════════════ SCREEN: FORGOT PW — STEP 2 (OTP + new pw) ═════════════ -->
+      <section class="screen" id="screen-forgot-2" data-screen-label="03 Forgot Password · New Password">
+        <button type="button" class="back-link" onclick="goTo('forgot-1')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          Change mobile number
+        </button>
+        <div class="step-header">
+          <div class="step-eyebrow">Reset password · Step 2 of 2</div>
+          <h2 class="step-title">Verify &amp; set new password</h2>
+          <p class="step-sub">Enter the 6-digit OTP sent to <strong id="fg-mobile-echo" style="color:var(--text-primary)">+91 ••••••••••</strong>.</p>
+        </div>
+
+        <form onsubmit="handleForgotStep2(event)" novalidate>
+          <div class="field">
+            <label>Enter OTP <span class="req">*</span></label>
+            <div class="otp-row" id="fg-otp-row">
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+            </div>
+            <div class="otp-meta">
+              <span id="fg-otp-timer-text">Resend available in <span id="fg-otp-timer">0:30</span></span>
+              <button type="button" class="resend" id="fg-resend" disabled onclick="resendOtp('fg')">Resend OTP</button>
+            </div>
+          </div>
+
+          <div class="otp-hint" id="fg-demo-hint" style="display:none"></div>
+
+          <div class="field">
+            <label for="fg-pw">New password <span class="req">*</span></label>
+            <div class="input-wrap">
+              <input class="input" id="fg-pw" type="password" placeholder="Min 8 characters" oninput="updateStrength('fg-pw','fg-pw-strength','fg-pw-label')" required>
+              <button type="button" class="toggle-eye" onclick="togglePw('fg-pw',this)">Show</button>
+            </div>
+            <div class="pw-strength" id="fg-pw-strength"><span></span><span></span><span></span><span></span></div>
+            <div class="pw-meta"><span>Use upper, lower, number &amp; symbol</span><span class="label" id="fg-pw-label">—</span></div>
+          </div>
+
+          <div class="field">
+            <label for="fg-pw2">Confirm new password <span class="req">*</span></label>
+            <div class="input-wrap">
+              <input class="input" id="fg-pw2" type="password" placeholder="Re-enter new password" required>
+              <button type="button" class="toggle-eye" onclick="togglePw('fg-pw2',this)">Show</button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Submit &amp; sign in</button>
+        </form>
+      </section>
+
+      <!-- ═════════════ SCREEN: REGISTER — STEP 1 (type) ═════════════ -->
+      <section class="screen" id="screen-register" data-screen-label="04 Register · Choose Type">
+        <button type="button" class="back-link" onclick="goTo('login')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          Back to sign in
+        </button>
+        <div class="step-header">
+          <div class="step-eyebrow">Create account · Step 1 of 3</div>
+          <h2 class="step-title">What's your role?</h2>
+          <p class="step-sub">Pick the account type that matches your work. We'll ask for the right details next.</p>
+        </div>
+
+        <div class="type-grid" id="type-grid">
+          <!-- filled by JS -->
+        </div>
+
+        <button type="button" class="btn btn-primary" id="reg-type-next" disabled onclick="goTo('register-2')">Continue</button>
+      </section>
+
+      <!-- ═════════════ SCREEN: REGISTER — STEP 2 (details + mobile) ═════════════ -->
+      <section class="screen" id="screen-register-2" data-screen-label="05 Register · Details">
+        <button type="button" class="back-link" onclick="goTo('register')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          Change account type
+        </button>
+        <div class="step-header">
+          <div class="step-eyebrow">Create account · Step 2 of 3</div>
+          <h2 class="step-title">Your details</h2>
+          <p class="step-sub" id="reg-role-sub">Registering as <strong id="reg-role-echo" style="color:var(--text-primary)">—</strong></p>
+        </div>
+
+        <form onsubmit="handleRegisterStep2(event)" novalidate>
+          <div class="field">
+            <label for="rg-name">Full name <span class="req">*</span></label>
+            <input class="input" id="rg-name" type="text" placeholder="e.g. Priya Sharma" autocomplete="name" required>
+          </div>
+
+          <!-- Conditional: DSA Name -->
+          <div class="field" id="rg-dsaname-wrap" style="display:none">
+            <label for="rg-dsaname">DSA name <span class="req">*</span></label>
+            <input class="input" id="rg-dsaname" type="text" placeholder="Name of the DSA you're attached to">
+          </div>
+
+          <!-- Conditional: Bank Name -->
+          <div class="field" id="rg-bankname-wrap" style="display:none">
+            <label for="rg-bankname">Bank / NBFC name <span class="req">*</span></label>
+            <input class="input" id="rg-bankname" type="text" placeholder="e.g. HDFC Bank, Bajaj Finserv">
+          </div>
+
+          <div class="field">
+            <label for="rg-email">Email</label>
+            <input class="input" id="rg-email" type="email" placeholder="you@company.com" autocomplete="email">
+          </div>
+
+          <div class="field">
+            <label for="rg-mobile">Mobile number <span class="req">*</span></label>
+            <div class="input-prefix">
+              <span class="prefix">
+                <span class="flag"><span class="s1"></span><span class="s2"></span><span class="s3"></span></span>
+                +91
+              </span>
+              <input class="input" id="rg-mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile" autocomplete="tel-national" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Send OTP</button>
+        </form>
+      </section>
+
+      <!-- ═════════════ SCREEN: REGISTER — STEP 3 (OTP + password) ═════════════ -->
+      <section class="screen" id="screen-register-3" data-screen-label="06 Register · Verify">
+        <button type="button" class="back-link" onclick="goTo('register-2')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          Edit details
+        </button>
+        <div class="step-header">
+          <div class="step-eyebrow">Create account · Step 3 of 3</div>
+          <h2 class="step-title">Verify &amp; create password</h2>
+          <p class="step-sub">OTP sent to <strong id="rg-mobile-echo" style="color:var(--text-primary)">+91 ••••••••••</strong>.</p>
+        </div>
+
+        <form onsubmit="handleRegisterStep3(event)" novalidate>
+          <div class="field">
+            <label>Enter OTP <span class="req">*</span></label>
+            <div class="otp-row" id="rg-otp-row">
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+              <input class="input" type="text" inputmode="numeric" maxlength="1" data-otp>
+            </div>
+            <div class="otp-meta">
+              <span id="rg-otp-timer-text">Resend available in <span id="rg-otp-timer">0:30</span></span>
+              <button type="button" class="resend" id="rg-resend" disabled onclick="resendOtp('rg')">Resend OTP</button>
+            </div>
+          </div>
+
+          <div class="otp-hint" id="rg-demo-hint" style="display:none"></div>
+
+          <div class="field">
+            <label for="rg-pw">Create password <span class="req">*</span></label>
+            <div class="input-wrap">
+              <input class="input" id="rg-pw" type="password" placeholder="Min 8 characters" oninput="updateStrength('rg-pw','rg-pw-strength','rg-pw-label')" required>
+              <button type="button" class="toggle-eye" onclick="togglePw('rg-pw',this)">Show</button>
+            </div>
+            <div class="pw-strength" id="rg-pw-strength"><span></span><span></span><span></span><span></span></div>
+            <div class="pw-meta"><span>Use upper, lower, number &amp; symbol</span><span class="label" id="rg-pw-label">—</span></div>
+          </div>
+
+          <div class="field">
+            <label for="rg-pw2">Confirm password <span class="req">*</span></label>
+            <div class="input-wrap">
+              <input class="input" id="rg-pw2" type="password" placeholder="Re-enter password" required>
+              <button type="button" class="toggle-eye" onclick="togglePw('rg-pw2',this)">Show</button>
+            </div>
+          </div>
+
+          <label class="checkbox" style="margin-bottom:16px">
+            <input type="checkbox" id="rg-terms" required>
+            <span style="font-size:12px">I agree to the <a href="#" class="link" style="font-size:12px">Terms</a> and <a href="#" class="link" style="font-size:12px">Privacy Policy</a>.</span>
+          </label>
+
+          <button type="submit" class="btn btn-primary">Create account</button>
+        </form>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Types (from requirements doc) ──────────────────────────────────────── */
+const TYPES = [
+  { id:'individual-dsa',  name:'Individual DSA',  group:'dsa'  },
+  { id:'dsa-company',     name:'DSA Company',     group:'dsa'  },
+  { id:'connector',       name:'Connector',       group:'link' },
+  { id:'sub-dsa',         name:'Sub-DSA',         group:'link' },
+  { id:'team-member',     name:'Team Member',     group:'link' },
+  { id:'accounts',        name:'Accounts',        group:'link' },
+  { id:'nbfc',            name:'NBFC',            group:'bank' },
+  { id:'bank',            name:'Bank',            group:'bank' },
+  { id:'credit-team',     name:'Credit Team',     group:'bank' },
+];
+const TYPE_META = {
+  'individual-dsa':'Files, payouts, banking tools',
+  'dsa-company':  'Team, sub-DSAs, multi-file pipeline',
+  'connector':    'Attach to a DSA · file referrals',
+  'sub-dsa':      'Attach to a DSA · handle files',
+  'team-member':  'Attach to a DSA · inbox only',
+  'accounts':     'Attach to a DSA · payout view',
+  'nbfc':         'Desk view · file inbox, policies',
+  'bank':         'Desk view · file inbox, policies',
+  'credit-team':  'Credit review queue & decisions',
+};
+const BANK_TYPES = new Set(['nbfc','bank','credit-team']);
+const ATTACH_TYPES = new Set(['connector','sub-dsa','team-member','accounts']);
+
+/* ── 2factor.in SMS OTP API ─────────────────────────────────────────────── */
+const OTP_API = {
+  key: 'a22c0ac1-5a46-11eb-8153-0200cd936042',
+  base: 'https://2factor.in/API/V1',
+  // AUTOGEN: server generates OTP & sends SMS, returns a session id
+  send: async (phone) => {
+    const url = `${OTP_API.base}/${OTP_API.key}/SMS/${encodeURIComponent(phone)}/AUTOGEN`;
+    const res = await fetch(url, { method:'GET' });
+    const json = await res.json();
+    if (json.Status !== 'Success') throw new Error(json.Details || 'OTP send failed');
+    return json.Details; // session id
+  },
+  // VERIFY: check the OTP the user typed against the session id
+  verify: async (sessionId, otp) => {
+    const url = `${OTP_API.base}/${OTP_API.key}/SMS/VERIFY/${encodeURIComponent(sessionId)}/${encodeURIComponent(otp)}`;
+    const res = await fetch(url, { method:'GET' });
+    const json = await res.json();
+    return json.Status === 'Success' && /match/i.test(json.Details || '');
+  },
+};
+
+/* ── App state ──────────────────────────────────────────────────────────── */
+const state = {
+  selectedType: null,
+  forgotMobile: '',
+  regMobile: '',
+  fgSession: null, // 2factor session id for forgot-password flow
+  rgSession: null, // 2factor session id for registration flow
+  fgFallback: false,
+  rgFallback: false,
+};
+
+/* ── Navigation ─────────────────────────────────────────────────────────── */
+const SCREENS = ['login','forgot-1','forgot-2','register','register-2','register-3'];
+function goTo(screen){
+  SCREENS.forEach(s=>{
+    const el = document.getElementById('screen-'+s);
+    if (el) el.classList.toggle('active', s === screen);
+  });
+  // Topbar CTA swap
+  const cta = document.getElementById('topbar-cta');
+  if (screen === 'login') {
+    cta.innerHTML = 'New here? <a href="#" onclick="goTo(\'register\');return false;">Create an account</a>';
+  } else {
+    cta.innerHTML = 'Already have an account? <a href="#" onclick="goTo(\'login\');return false;">Sign in</a>';
+  }
+  // Start timers / focus per-screen
+  if (screen === 'forgot-2') {
+    startOtpTimer('fg');
+    focusFirst('fg-otp-row');
+    const m = state.forgotMobile || '';
+    document.getElementById('fg-mobile-echo').textContent = m ? '+91 '+maskPhone(m) : '+91 ••••••••••';
+  }
+  if (screen === 'register-3') {
+    startOtpTimer('rg');
+    focusFirst('rg-otp-row');
+    const m = state.regMobile || '';
+    document.getElementById('rg-mobile-echo').textContent = m ? '+91 '+maskPhone(m) : '+91 ••••••••••';
+  }
+  if (screen === 'register-2') {
+    const t = TYPES.find(x => x.id === state.selectedType);
+    document.getElementById('reg-role-echo').textContent = t ? t.name : '—';
+    document.getElementById('rg-dsaname-wrap').style.display  = ATTACH_TYPES.has(state.selectedType) ? '' : 'none';
+    document.getElementById('rg-bankname-wrap').style.display = BANK_TYPES.has(state.selectedType)   ? '' : 'none';
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function maskPhone(s){
+  const d = String(s).replace(/\D/g,'');
+  if (d.length < 4) return d;
+  return d.slice(0,2)+'••••••'+d.slice(-2);
+}
+
+/* ── Type grid render ───────────────────────────────────────────────────── */
+function renderTypeGrid(){
+  const host = document.getElementById('type-grid');
+  host.innerHTML = TYPES.map(t => `
+    <button type="button" class="type-card" data-type="${t.id}" onclick="selectType('${t.id}')">
+      <span class="t-dot"></span>
+      <span class="t-name">${t.name}</span>
+      <span class="t-meta">${TYPE_META[t.id]||''}</span>
+    </button>
+  `).join('');
+}
+function selectType(id){
+  state.selectedType = id;
+  document.querySelectorAll('#type-grid .type-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.type === id);
+  });
+  document.getElementById('reg-type-next').disabled = false;
+}
+
+/* ── Password UX ────────────────────────────────────────────────────────── */
+function togglePw(id, btn){
+  const el = document.getElementById(id);
+  if (el.type === 'password') { el.type = 'text'; btn.textContent = 'Hide'; }
+  else { el.type = 'password'; btn.textContent = 'Show'; }
+}
+function scoreStrength(v){
+  let s = 0;
+  if (v.length >= 8) s++;
+  if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++;
+  if (/\d/.test(v)) s++;
+  if (/[^A-Za-z0-9]/.test(v)) s++;
+  return Math.min(s,4);
+}
+function updateStrength(inputId, meterId, labelId){
+  const v = document.getElementById(inputId).value;
+  const s = v ? scoreStrength(v) : 0;
+  const meter = document.getElementById(meterId);
+  const label = document.getElementById(labelId);
+  meter.classList.remove('s1','s2','s3','s4');
+  if (s > 0) meter.classList.add('s'+s);
+  label.classList.remove('s1','s2','s3','s4');
+  const names = ['—','Weak','Fair','Good','Strong'];
+  label.textContent = names[s];
+  if (s > 0) label.classList.add('s'+s);
+}
+
+/* ── OTP inputs (auto-advance, paste, backspace) ────────────────────────── */
+function wireOtp(rowId){
+  const row = document.getElementById(rowId);
+  const inputs = Array.from(row.querySelectorAll('[data-otp]'));
+  inputs.forEach((inp, i) => {
+    inp.addEventListener('input', e => {
+      const v = e.target.value.replace(/\D/g,'');
+      e.target.value = v.slice(-1);
+      if (v && i < inputs.length-1) inputs[i+1].focus();
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !inp.value && i > 0) inputs[i-1].focus();
+      if (e.key === 'ArrowLeft'  && i > 0) inputs[i-1].focus();
+      if (e.key === 'ArrowRight' && i < inputs.length-1) inputs[i+1].focus();
+    });
+    inp.addEventListener('paste', e => {
+      const text = (e.clipboardData.getData('text') || '').replace(/\D/g,'').slice(0, inputs.length);
+      if (!text) return;
+      e.preventDefault();
+      text.split('').forEach((ch, j) => { if (inputs[j]) inputs[j].value = ch; });
+      const next = Math.min(text.length, inputs.length-1);
+      inputs[next].focus();
+    });
+  });
+}
+function focusFirst(rowId){
+  const inp = document.querySelector('#'+rowId+' [data-otp]');
+  if (inp) { inp.value=''; setTimeout(()=>inp.focus(),50); }
+  document.querySelectorAll('#'+rowId+' [data-otp]').forEach(i => i.value = '');
+}
+function readOtp(rowId){
+  return Array.from(document.querySelectorAll('#'+rowId+' [data-otp]')).map(i=>i.value).join('');
+}
+
+/* ── OTP resend timer (30s per doc) ─────────────────────────────────────── */
+const timers = {};
+function startOtpTimer(prefix){
+  clearInterval(timers[prefix]);
+  const btn   = document.getElementById(prefix+'-resend');
+  const text  = document.getElementById(prefix+'-otp-timer-text');
+  const num   = document.getElementById(prefix+'-otp-timer');
+  let s = 30;
+  btn.disabled = true;
+  btn.classList.remove('ready');
+  text.style.display = '';
+  num.textContent = '0:30';
+  timers[prefix] = setInterval(() => {
+    s--;
+    if (s <= 0) {
+      clearInterval(timers[prefix]);
+      btn.disabled = false;
+      btn.classList.add('ready');
+      text.style.display = 'none';
+      return;
+    }
+    num.textContent = '0:' + String(s).padStart(2,'0');
+  }, 1000);
+}
+async function resendOtp(prefix){
+  const mobile = prefix === 'fg' ? state.forgotMobile : state.regMobile;
+  if (!mobile) { toast('Mobile number missing','err'); return; }
+  const btn = document.getElementById(prefix+'-resend');
+  btn.disabled = true;
+  try {
+    const sid = await OTP_API.send(mobile);
+    if (prefix === 'fg') { state.fgSession = sid; state.fgFallback = false; document.getElementById('fg-demo-hint').style.display = 'none'; }
+    else                 { state.rgSession = sid; state.rgFallback = false; document.getElementById('rg-demo-hint').style.display = 'none'; }
+    toast('OTP resent','ok');
+  } catch (err) {
+    if (prefix === 'fg') state.fgFallback = true; else state.rgFallback = true;
+    const hint = document.getElementById(prefix+'-demo-hint');
+    hint.style.display = ''; hint.innerHTML = 'Live SMS blocked by browser (CORS). Demo OTP: <strong>123456</strong>';
+    toast('Live SMS unavailable — using demo OTP','err');
+  }
+  startOtpTimer(prefix);
+}
+
+/* ── Handlers ──────────────────────────────────────────────────────────── */
+function handleLogin(e){
+  e.preventDefault();
+  const mobile = document.getElementById('li-mobile').value.trim();
+  const pw     = document.getElementById('li-pw').value;
+  if (!/^\d{10}$/.test(mobile)) { toast('Enter a 10-digit mobile number','err'); return; }
+  if (pw.length < 6)            { toast('Password too short','err'); return; }
+  // Persist session (demo)
+  const session = { mobile, signedIn: true, ts: Date.now() };
+  localStorage.setItem('cancrm-session', JSON.stringify(session));
+  toast('Welcome back — signing you in…','ok');
+  setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+}
+
+async function handleForgotStep1(e){
+  e.preventDefault();
+  const m = document.getElementById('fg-mobile').value.trim();
+  if (!/^\d{10}$/.test(m)) { toast('Enter a 10-digit mobile number','err'); return; }
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true; btn.textContent = 'Sending OTP…';
+  state.forgotMobile = m;
+  try {
+    state.fgSession = await OTP_API.send(m);
+    state.fgFallback = false;
+    toast('OTP sent to +91 ' + maskPhone(m), 'ok');
+  } catch (err) {
+    // Browser CORS or network block — fall back to demo mode so the prototype still works
+    state.fgSession = null;
+    state.fgFallback = true;
+    toast('Live SMS unavailable — using demo OTP 123456', 'err');
+  }
+  btn.disabled = false; btn.textContent = 'Send OTP';
+  goTo('forgot-2');
+  const hint = document.getElementById('fg-demo-hint');
+  if (state.fgFallback) { hint.style.display = ''; hint.innerHTML = 'Live SMS blocked by browser (CORS). Demo OTP: <strong>123456</strong>'; }
+  else { hint.style.display = 'none'; }
+}
+
+async function handleForgotStep2(e){
+  e.preventDefault();
+  const otp = readOtp('fg-otp-row');
+  const pw  = document.getElementById('fg-pw').value;
+  const pw2 = document.getElementById('fg-pw2').value;
+  if (otp.length !== 6)          { toast('Enter the 6-digit OTP','err'); return; }
+  if (pw.length < 8)             { toast('Password must be at least 8 characters','err'); return; }
+  if (scoreStrength(pw) < 2)     { toast('Choose a stronger password','err'); return; }
+  if (pw !== pw2)                { toast('Passwords do not match','err'); return; }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  let ok = false;
+  try {
+    if (state.fgFallback || !state.fgSession) ok = (otp === '123456');
+    else ok = await OTP_API.verify(state.fgSession, otp);
+  } catch (err) { ok = false; }
+  btn.disabled = false; btn.textContent = 'Submit & sign in';
+  if (!ok) { toast('Invalid OTP','err'); return; }
+
+  toast('Password reset — please sign in','ok');
+  setTimeout(() => {
+    document.getElementById('li-mobile').value = state.forgotMobile || '';
+    goTo('login');
+    document.getElementById('li-pw').focus();
+  }, 700);
+}
+
+async function handleRegisterStep2(e){
+  e.preventDefault();
+  const name   = document.getElementById('rg-name').value.trim();
+  const mobile = document.getElementById('rg-mobile').value.trim();
+  if (!name)                      { toast('Full name required','err'); return; }
+  if (!/^\d{10}$/.test(mobile))   { toast('Enter a 10-digit mobile number','err'); return; }
+
+  if (ATTACH_TYPES.has(state.selectedType)) {
+    const d = document.getElementById('rg-dsaname').value.trim();
+    if (!d) { toast('DSA name required','err'); return; }
+  }
+  if (BANK_TYPES.has(state.selectedType)) {
+    const b = document.getElementById('rg-bankname').value.trim();
+    if (!b) { toast('Bank / NBFC name required','err'); return; }
+  }
+  state.regMobile = mobile;
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true; btn.textContent = 'Sending OTP…';
+  try {
+    state.rgSession = await OTP_API.send(mobile);
+    state.rgFallback = false;
+    toast('OTP sent to +91 ' + maskPhone(mobile),'ok');
+  } catch (err) {
+    state.rgSession = null;
+    state.rgFallback = true;
+    toast('Live SMS unavailable — using demo OTP 123456','err');
+  }
+  btn.disabled = false; btn.textContent = 'Send OTP';
+  goTo('register-3');
+  const hint = document.getElementById('rg-demo-hint');
+  if (state.rgFallback) { hint.style.display = ''; hint.innerHTML = 'Live SMS blocked by browser (CORS). Demo OTP: <strong>123456</strong>'; }
+  else { hint.style.display = 'none'; }
+}
+
+async function handleRegisterStep3(e){
+  e.preventDefault();
+  const otp = readOtp('rg-otp-row');
+  const pw  = document.getElementById('rg-pw').value;
+  const pw2 = document.getElementById('rg-pw2').value;
+  const agree = document.getElementById('rg-terms').checked;
+  if (otp.length !== 6)          { toast('Enter the 6-digit OTP','err'); return; }
+  if (pw.length < 8)             { toast('Password must be at least 8 characters','err'); return; }
+  if (scoreStrength(pw) < 2)     { toast('Choose a stronger password','err'); return; }
+  if (pw !== pw2)                { toast('Passwords do not match','err'); return; }
+  if (!agree)                    { toast('Please agree to the terms','err'); return; }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  let ok = false;
+  try {
+    if (state.rgFallback || !state.rgSession) ok = (otp === '123456');
+    else ok = await OTP_API.verify(state.rgSession, otp);
+  } catch (err) { ok = false; }
+  btn.disabled = false; btn.textContent = 'Create account';
+  if (!ok) { toast('Invalid OTP','err'); return; }
+
+  // Persist registered user (demo)
+  const rec = {
+    type: state.selectedType,
+    name: document.getElementById('rg-name').value.trim(),
+    email: document.getElementById('rg-email').value.trim(),
+    mobile: state.regMobile,
+    dsaName:  document.getElementById('rg-dsaname').value.trim()  || null,
+    bankName: document.getElementById('rg-bankname').value.trim() || null,
+    createdAt: Date.now(),
+  };
+  const all = JSON.parse(localStorage.getItem('cancrm-users') || '[]');
+  all.push(rec);
+  localStorage.setItem('cancrm-users', JSON.stringify(all));
+
+  toast('Account created — please sign in','ok');
+  setTimeout(() => {
+    // Per doc: after submit → Login page
+    document.getElementById('li-mobile').value = state.regMobile;
+    goTo('login');
+    document.getElementById('li-pw').focus();
+  }, 700);
+}
+
+/* ── Toast ─────────────────────────────────────────────────────────────── */
+let _toastT;
+function toast(msg, kind){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (kind ? ' '+kind : '');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => t.className = 'toast', 2400);
+}
+
+/* ── Boot ──────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  renderTypeGrid();
+  wireOtp('fg-otp-row');
+  wireOtp('rg-otp-row');
+
+  // If already signed in, bounce to dashboard
+  try {
+    const s = JSON.parse(localStorage.getItem('cancrm-session') || 'null');
+    // Don't auto-bounce — user may want to log in as different user.
+    // We'll just prefill the mobile number instead.
+    if (s && s.mobile) document.getElementById('li-mobile').value = s.mobile;
+  } catch(e){}
+
+  // Restrict mobile inputs to digits
+  ['li-mobile','fg-mobile','rg-mobile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => { el.value = el.value.replace(/\D/g,''); });
+  });
+
+  // Honor URL hash for deep-linking (?register, #forgot)
+  const h = location.hash.replace('#','');
+  if (['register','forgot-1','forgot-2','login'].includes(h)) goTo(h);
+});
+</script>
+</body>
+</html>

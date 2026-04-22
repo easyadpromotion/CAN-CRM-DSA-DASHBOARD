@@ -1,0 +1,2564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAN-CRM — Dashboard</title>
+<!--
+  Pretext-native HTML: text heights computed dynamically via @chenglou/pretext.
+  For self-contained deployment (zero network), replace the CDN import below with:
+    <script src="~/.claude/skills/gstack/design-html/vendor/pretext.js"></script>
+  and use window.Pretext.prepare / window.Pretext.layout instead.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+/* ── DESIGN TOKENS (from DESIGN.md — The Pragmatic Ledger) ─────────────── */
+:root {
+  --bg:             #FAFAF6;
+  --surface:        #FFFFFF;
+  --surface-2:      #F3F5F2;
+  --primary:        #1C4530;
+  --primary-hover:  #153826;
+  --primary-muted:  #E8F0EB;
+  --accent:         #C97A2A;
+  --accent-hover:   #AE6822;
+  --accent-muted:   #FDF3E7;
+  --border:         #DDE5E1;
+  --border-strong:  #BFD0C8;
+  --text-primary:   #18231E;
+  --text-secondary: #536960;
+  --text-muted:     #8FA898;
+  --success:        #1A7A4A;
+  --success-bg:     #E6F5EE;
+  --warning:        #C97A2A;
+  --warning-bg:     #FDF3E7;
+  --error:          #C63927;
+  --error-bg:       #FDECEA;
+  --info:           #1C6B9E;
+  --info-bg:        #E8F2FA;
+  --shadow-sm:  0 1px 2px rgba(28,69,48,0.06);
+  --shadow-md:  0 4px 12px rgba(28,69,48,0.08);
+
+  --font-display: 'Instrument Sans', system-ui, sans-serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-full: 9999px;
+
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-12: 48px;
+
+  /* ── legacy aliases (for tools / modals built on earlier tokens) ── */
+  --gold:   var(--accent);
+  --gold2:  var(--accent-hover);
+  --bg2:    var(--surface-2);
+  --text:   var(--text-primary);
+  --muted:  var(--text-secondary);
+  --red:    var(--error);
+  --blue:   var(--info);
+  --green:  var(--success);
+}
+
+[data-theme="dark"] {
+  --bg:             #0F1F18;
+  --surface:        #162B20;
+  --surface-2:      #1D3828;
+  --primary:        #4CAF7D;
+  --primary-hover:  #5DC48E;
+  --primary-muted:  #1A3A28;
+  --accent:         #D4922A;
+  --accent-hover:   #E0A040;
+  --accent-muted:   #2A2012;
+  --border:         #243D30;
+  --border-strong:  #2E5040;
+  --text-primary:   #F0EDE6;
+  --text-secondary: #8FA898;
+  --text-muted:     #5C7A6A;
+  --success:        #4CAF7D;
+  --success-bg:     #102A1A;
+  --warning:        #D4922A;
+  --warning-bg:     #2A1A0A;
+  --error:          #E05545;
+  --error-bg:       #2A0E0A;
+  --info:           #4A9ECA;
+  --info-bg:        #0A1A2A;
+}
+
+/* ── RESET ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; height: 100%; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.5;
+  height: 100%;
+  overflow: hidden; /* app-shell layout */
+  transition: background 0.15s, color 0.15s;
+}
+
+/* ── APP SHELL ───────────────────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── TOP NAV ────────────────────────────────────────────────────────────── */
+.topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-6);
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: var(--sp-4);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.logo-mark {
+  width: 28px;
+  height: 28px;
+  background: var(--primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.01em;
+}
+
+.topnav-search {
+  flex: 1;
+  max-width: 360px;
+}
+.search-input {
+  width: 100%;
+  padding: 6px 12px 6px 32px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238FA898' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 10px center;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-muted);
+}
+.search-input::placeholder { color: var(--text-muted); }
+
+.topnav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+}
+
+.due-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  background: var(--accent-muted);
+  border: 1px solid var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s;
+  font-variant-numeric: tabular-nums;
+}
+.due-pill:hover { background: var(--accent); color: #fff; }
+
+.topnav-icon-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+}
+.topnav-icon-btn:hover { background: var(--primary-muted); color: var(--primary); }
+.notif-badge {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-muted);
+  border: 2px solid var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.avatar:hover { border-color: var(--primary-hover); }
+
+/* ── MAIN BODY ───────────────────────────────────────────────────────────── */
+.main-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────────────────── */
+.sidebar {
+  width: 208px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: var(--sp-4) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.sidebar-section {
+  padding: 0 var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.sidebar-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 var(--sp-2);
+  margin-bottom: var(--sp-1);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px var(--sp-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  gap: var(--sp-2);
+  user-select: none;
+  text-decoration: none;
+}
+.nav-item:hover { background: var(--surface-2); color: var(--text-primary); }
+.nav-item.active {
+  background: var(--primary-muted);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.nav-item-left { display: flex; align-items: center; gap: var(--sp-2); }
+.nav-item-icon { font-size: 0.875rem; opacity: 0.85; flex-shrink: 0; }
+
+.nav-badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  min-width: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.nav-badge-muted {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  min-width: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--border);
+  margin: var(--sp-2) var(--sp-3);
+}
+
+/* ── CONTENT AREA ────────────────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-5) var(--sp-6);
+  min-width: 0;
+}
+
+/* ── PAGE HEADER ─────────────────────────────────────────────────────────── */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--sp-5);
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+/* Pretext-managed element */
+.page-subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  overflow: hidden; /* Pretext sets height */
+}
+
+.header-actions { display: flex; gap: var(--sp-2); align-items: center; flex-shrink: 0; }
+
+/* ── BUTTONS ─────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+.btn-secondary { background: var(--surface); color: var(--text-primary); border-color: var(--border-strong); }
+.btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+.btn-ghost { background: transparent; color: var(--text-secondary); border-color: transparent; }
+.btn-ghost:hover { background: var(--surface-2); color: var(--text-primary); }
+.btn-accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-accent:hover { background: var(--accent-hover); }
+.btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+
+/* ── STAT CARDS ──────────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-6);
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s;
+}
+.stat-card:hover { box-shadow: var(--shadow-md); }
+.stat-card-accent { border-left: 3px solid var(--accent); }
+.stat-card-success { border-left: 3px solid var(--success); }
+.stat-card-error { border-left: 3px solid var(--error); }
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: var(--sp-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-delta {
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.delta-up { color: var(--success); }
+.delta-down { color: var(--error); }
+.delta-neutral { color: var(--text-muted); }
+
+/* ── SECTION HEADER ──────────────────────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── STATUS BADGES ───────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.badge-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.badge-lead     { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+.badge-applied  { background: var(--info-bg); color: var(--info); }
+.badge-approved { background: var(--success-bg); color: var(--success); }
+.badge-disbursed{ background: var(--success-bg); color: var(--success); font-weight: 700; }
+.badge-followup { background: var(--warning-bg); color: var(--warning); }
+.badge-overdue  { background: var(--error-bg); color: var(--error); font-weight: 700; }
+
+/* ── FOLLOW-UP LIST ──────────────────────────────────────────────────────── */
+.followup-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-6);
+}
+
+.followup-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+.followup-item:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+.followup-item-urgent { border-left: 3px solid var(--accent); }
+.followup-item-overdue {
+  border-left: 3px solid var(--error);
+  background: var(--error-bg);
+}
+
+.followup-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary-muted);
+  border: 1.5px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--primary);
+  flex-shrink: 0;
+  user-select: none;
+}
+.followup-avatar-overdue {
+  background: var(--error-bg);
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.followup-info { flex: 1; min-width: 0; }
+.followup-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Pretext-managed element */
+.followup-detail {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  overflow: hidden; /* Pretext sets height */
+  font-variant-numeric: tabular-nums;
+}
+.followup-detail-overdue { color: var(--error) !important; font-weight: 500; }
+
+.followup-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.followup-loan {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.followup-bank {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.action-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-body);
+  white-space: nowrap;
+}
+.action-btn-accent { background: var(--accent); color: #fff; }
+.action-btn-accent:hover { background: var(--accent-hover); }
+.action-btn-error { background: var(--error); color: #fff; }
+.action-btn-error:hover { opacity: 0.9; }
+.action-btn-success { background: var(--success); color: #fff; }
+.action-btn-muted { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+.action-btn-muted:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+/* ── BORROWER TABLE ───────────────────────────────────────────────────────── */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--sp-5);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th {
+  padding: 9px var(--sp-4);
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  user-select: none;
+}
+th:hover { color: var(--text-secondary); cursor: pointer; }
+td {
+  padding: 10px var(--sp-4);
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface-2); }
+.td-name { font-weight: 500; font-variant-numeric: normal; }
+.td-amount { font-weight: 600; }
+.td-secondary { color: var(--text-secondary); font-variant-numeric: normal; }
+.td-muted { color: var(--text-muted); }
+
+/* ── CIBIL WARNING ───────────────────────────────────────────────────────── */
+.cibil-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  background: var(--warning-bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+.cibil-icon { font-size: 1.125rem; flex-shrink: 0; line-height: 1.4; }
+.cibil-content { flex: 1; min-width: 0; }
+.cibil-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+  font-family: var(--font-display);
+}
+/* Pretext-managed element */
+.cibil-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  overflow: hidden; /* Pretext sets height */
+}
+.cibil-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+/* ── THEME TOGGLE ────────────────────────────────────────────────────────── */
+.theme-btn {
+  position: fixed;
+  bottom: var(--sp-5);
+  right: var(--sp-5);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.15s;
+  z-index: 100;
+}
+.theme-btn:hover { box-shadow: 0 6px 20px rgba(28,69,48,0.14); transform: scale(1.05); }
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .content { padding: var(--sp-4); }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+  .topnav-search { display: none; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .followup-item { flex-wrap: wrap; }
+}
+
+/* ── FOCUS VISIBLE ───────────────────────────────────────────────────────── */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+button:focus-visible, a:focus-visible {
+  box-shadow: 0 0 0 3px var(--primary-muted);
+  outline: none;
+}
+</style>
+<style>
+.prod-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:4px 0 24px}
+.prod-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px 22px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.prod-card:hover{border-color:var(--gold);background:rgba(245,200,66,.04);transform:translateY(-3px);box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.pc-emoji{font-size:52px;display:block;margin-bottom:14px;line-height:1}
+.pc-title{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;margin-bottom:5px}
+.pc-sub{font-size:12px;color:var(--muted);line-height:1.55}
+.pc-arr{position:absolute;bottom:14px;right:16px;color:var(--gold);font-size:18px;opacity:.5}
+.pc-bl{border-top:3px solid var(--blue)}.pc-pl{border-top:3px solid var(--green)}.pc-hl{border-top:3px solid var(--gold)}.pc-lap{border-top:3px solid #a78bfa}
+.iframe-wrap{width:100%;height:calc(100vh - 190px);min-height:480px}
+.iframe-wrap iframe{width:100%;height:100%;border:1px solid var(--border);border-radius:10px}
+.back-bar{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.back-btn{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 14px;font-size:13px;color:var(--text);cursor:pointer;transition:all .2s}
+.back-btn:hover{border-color:var(--gold);color:var(--gold)}
+.tbl-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tbl-search{flex:1;max-width:300px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);outline:none}
+.tbl-search:focus{border-color:var(--gold)}.mini-sel{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);outline:none;cursor:pointer}
+.sbl{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}.sbl-lead{background:rgba(94,114,144,.15);color:var(--muted)}.sbl-applied{background:rgba(61,139,255,.12);color:var(--blue)}.sbl-approved,.sbl-disbursed{background:rgba(34,217,160,.12);color:var(--green)}.sbl-overdue{background:rgba(255,77,109,.12);color:var(--red)}
+.contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.cc-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;transition:border-color .2s}.cc-card:hover{border-color:rgba(245,200,66,.3)}
+.cc-av{width:42px;height:42px;border-radius:50%;background:rgba(245,200,66,.12);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--gold);font-family:'Syne',sans-serif;flex-shrink:0}
+.pay-table-wrap{overflow-x:auto}.pay-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:880px}
+.pay-tbl th{background:var(--surface);padding:9px 10px;text-align:left;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap}
+.pay-tbl td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:middle}.pay-tbl tfoot td{background:var(--surface);font-weight:700;color:var(--gold);font-size:13px;padding:10px 8px}
+.pt-inp{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:5px 8px;color:var(--text);font-size:12px;width:100%;min-width:80px;outline:none}.pt-inp:focus{border-color:var(--gold)}
+.pt-sel{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:5px 8px;color:var(--text);font-size:12px;outline:none;cursor:pointer}
+.pol-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;transition:border-color .2s}.pol-item:hover{border-color:rgba(245,200,66,.25)}
+.ov-m{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px)}.ov-m.open{display:flex}
+.ov-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:100%;max-height:90vh;overflow-y:auto;color:var(--text-primary)}.ov-box.sm{max-width:460px}.ov-box.md{max-width:580px}.ov-box.lg{max-width:740px}
+.ov-hd{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:2}
+.ov-hd h3{font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--text-primary)}.ov-close{background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+.ov-bd{padding:20px;color:var(--text-primary)}.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fg{display:flex;flex-direction:column;gap:4px}.fg.full{grid-column:1/-1}
+.fg label{font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.07em}
+.fc{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--text-primary);font-size:13px;outline:none;width:100%;transition:border-color .2s;font-family:var(--font-body)}.fc:focus{border-color:var(--primary)}
+.fc::placeholder{color:var(--text-muted)}
+.ov-acts{display:flex;gap:10px;padding-top:14px;border-top:1px solid var(--border);margin-top:4px}
+.ov-save{flex:1;background:var(--primary);color:#fff;font-family:var(--font-display);font-weight:700;font-size:14px;border:none;border-radius:8px;padding:11px;cursor:pointer}.ov-save:hover{background:var(--primary-hover)}
+.ov-cancel{background:var(--surface);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:11px 18px;cursor:pointer;font-size:13px}
+.ov-paste{width:100%;min-height:140px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text-primary);font-size:12px;line-height:1.7;outline:none;resize:vertical;font-family:var(--font-body)}.ov-paste:focus{border-color:var(--primary)}
+@media(max-width:680px){.prod-grid,.f2{grid-template-columns:1fr}.contact-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- TOP NAV -->
+  <nav class="topnav" role="banner">
+    <a href="#" class="logo" aria-label="CAN-CRM Home">
+      <div class="logo-mark" aria-hidden="true">CC</div>
+      <span class="logo-text">CAN-CRM</span>
+    </a>
+
+    <div class="topnav-search">
+      <input class="search-input" type="search" placeholder="Search borrowers, files, banks…" aria-label="Search">
+    </div>
+
+    <div class="topnav-actions">
+      <div class="due-pill" role="status" aria-live="polite" tabindex="0" title="8 follow-ups due today">
+        ⚡ 8 due today
+      </div>
+      <button class="topnav-icon-btn" aria-label="Notifications (1 unread)" title="Notifications">
+        🔔
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="topnav-icon-btn" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+        🌙
+      </button>
+      <div class="avatar" role="button" tabindex="0" aria-label="Demo User — account menu" title="Demo User">DU</div>
+    </div>
+  </nav>
+
+  <!-- MAIN BODY -->
+  <div class="main-body">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" role="navigation" aria-label="Main navigation">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Overview</div>
+        <a href="#" class="nav-item active" aria-current="page" data-view="followups">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">📋</span>
+            Today's Follow-ups
+          </span>
+          <span class="nav-badge" aria-label="8 due">8</span>
+        </a>
+        <a href="#" class="nav-item" data-view="borrowers">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">👥</span>
+            All Borrowers
+          </span>
+          <span class="nav-badge-muted">84</span>
+        </a>
+        <a href="#" class="nav-item" data-view="files">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">📁</span>
+            Active Files
+          </span>
+          <span class="nav-badge-muted">51</span>
+        </a>
+        <a href="#" class="nav-item" data-view="calendar">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">📅</span>
+            Follow-up Calendar
+          </span>
+        </a>
+      </div>
+
+      <div class="sidebar-divider" role="separator"></div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Tools</div>
+        <a href="#" class="nav-item" data-view="eligibility">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">🎯</span>
+            Eligibility Check
+          </span>
+        </a>
+        <a href="#" class="nav-item" data-view="bankers">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">🏦</span>
+            Banker Directory
+          </span>
+        </a>
+        <a href="#" class="nav-item" data-view="payout">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">📊</span>
+            Payout Calculator
+          </span>
+        </a>
+        <a href="#" class="nav-item" data-view="filesdump">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">🗂️</span>
+            Files Dump
+          </span>
+        </a>
+        <a href="#" class="nav-item" data-view="policies">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">📜</span>
+            Bank Policies
+          </span>
+          <span class="nav-badge" style="background:var(--info)" aria-label="1 update">1</span>
+        </a>
+      </div>
+
+      <div class="sidebar-divider" role="separator"></div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Account</div>
+        <a href="#" class="nav-item" data-view="settings">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">⚙️</span>
+            Settings
+          </span>
+        </a>
+        <a href="#" class="nav-item" data-view="support">
+          <span class="nav-item-left">
+            <span class="nav-item-icon" aria-hidden="true">📞</span>
+            Support
+          </span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="content" role="main" id="main-content">
+
+    <!-- ── VIEW: FOLLOW-UPS (default) ───────────────────────────────── -->
+    <div id="view-followups" class="view-panel">
+
+      <!-- PAGE HEADER -->
+      <header class="page-header">
+        <div>
+          <h1 class="page-title">Good morning, Demo User ☀️</h1>
+          <!-- Pretext-managed: computed height on resize -->
+          <p class="page-subtitle" data-pretext>
+            Monday, 21 Apr — 8 follow-ups scheduled · 2 overdue · CIBIL alert on Demo Borrower B
+          </p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" onclick="navigate('borrowers')">Import</button>
+          <button class="btn btn-primary btn-sm" onclick="openBorrowerModal()">+ Add Borrower</button>
+        </div>
+      </header>
+
+      <!-- STAT CARDS -->
+      <section class="stats-grid" aria-label="Dashboard summary">
+        <div class="stat-card stat-card-accent" role="article">
+          <div class="stat-label">Due Today</div>
+          <div class="stat-value" style="color:var(--accent)">8</div>
+          <div class="stat-delta delta-neutral">4 EMI reminders · 4 follow-ups</div>
+        </div>
+        <div class="stat-card" role="article">
+          <div class="stat-label">Active Files</div>
+          <div class="stat-value">84</div>
+          <div class="stat-delta delta-up">↑ 3 added this week</div>
+        </div>
+        <div class="stat-card stat-card-success" role="article">
+          <div class="stat-label">Disbursed — April</div>
+          <div class="stat-value" style="color:var(--success)">₹2.4Cr</div>
+          <div class="stat-delta delta-up">↑ 18% vs March</div>
+        </div>
+        <div class="stat-card" role="article">
+          <div class="stat-label">Commission Due</div>
+          <div class="stat-value">₹1.2L</div>
+          <div class="stat-delta delta-neutral">3 banks pending</div>
+        </div>
+      </section>
+
+      <!-- CIBIL ALERT (high priority — shown above follow-ups) -->
+      <div class="cibil-alert" role="alert" aria-live="assertive">
+        <div class="cibil-icon" aria-hidden="true">⚠️</div>
+        <div class="cibil-content">
+          <div class="cibil-title">CIBIL Risk — Demo Borrower B · Pending submission to 4 banks</div>
+          <!-- Pretext-managed: computed height on resize -->
+          <p class="cibil-desc" data-pretext>
+            Submitting to HDFC, SBI, Axis, and Kotak simultaneously will trigger 4 credit enquiries, potentially dropping Demo Borrower B's CIBIL score by 35–45 points. Recommended: submit to HDFC Bank (match 94%) and Axis Bank (match 87%) only. Review the eligibility report before proceeding.
+          </p>
+          <div class="cibil-actions">
+            <button class="btn btn-secondary btn-sm">View Eligibility Report</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--text-muted)">Dismiss</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TODAY'S FOLLOW-UPS -->
+      <section aria-labelledby="followups-heading">
+        <div class="section-header">
+          <h2 class="section-title" id="followups-heading">Today's Follow-ups</h2>
+          <button class="btn btn-ghost btn-sm">Send all reminders</button>
+        </div>
+
+        <ol class="followup-list" aria-label="Today's follow-ups">
+
+          <!-- Overdue -->
+          <li class="followup-item followup-item-overdue">
+            <div class="followup-avatar followup-avatar-overdue" aria-hidden="true">DA</div>
+            <div class="followup-info">
+              <div class="followup-name">Demo Borrower A</div>
+              <!-- Pretext-managed -->
+              <p class="followup-detail followup-detail-overdue" data-pretext>
+                EMI overdue · 3 days past due · ₹32,000 · SBI Home Loan · Last contact 12 Apr
+              </p>
+            </div>
+            <div class="followup-right">
+              <div class="followup-loan" style="color:var(--error)">₹28,00,000</div>
+              <div class="followup-bank">SBI</div>
+              <button class="action-btn action-btn-error" aria-label="Call Demo Borrower A now">Call Now</button>
+            </div>
+          </li>
+
+          <!-- Urgent — EMI in 1 day -->
+          <li class="followup-item followup-item-urgent">
+            <div class="followup-avatar" aria-hidden="true">DB</div>
+            <div class="followup-info">
+              <div class="followup-name">Demo Borrower B</div>
+              <!-- Pretext-managed -->
+              <p class="followup-detail" data-pretext>
+                EMI due in 1 day · ₹48,500 · HDFC Home Loan · WhatsApp reminder pending
+              </p>
+            </div>
+            <div class="followup-right">
+              <div class="followup-loan">₹45,00,000</div>
+              <div class="followup-bank">HDFC Bank</div>
+              <button class="action-btn action-btn-accent" aria-label="Send WhatsApp reminder to Demo Borrower B">Send WA</button>
+            </div>
+          </li>
+
+          <!-- Urgent — EMI in 2 days, reminder sent -->
+          <li class="followup-item followup-item-urgent">
+            <div class="followup-avatar" aria-hidden="true">DC</div>
+            <div class="followup-info">
+              <div class="followup-name">Demo Borrower C</div>
+              <!-- Pretext-managed -->
+              <p class="followup-detail" data-pretext>
+                EMI due in 2 days · ₹22,000 · Axis Bank LAP · Reminder sent ✓ today 8:02am
+              </p>
+            </div>
+            <div class="followup-right">
+              <div class="followup-loan">₹18,50,000</div>
+              <div class="followup-bank">Axis Bank</div>
+              <button class="action-btn action-btn-success" aria-label="Demo Borrower C — reminder done">Done ✓</button>
+            </div>
+          </li>
+
+          <!-- Normal follow-up -->
+          <li class="followup-item">
+            <div class="followup-avatar" aria-hidden="true">DD</div>
+            <div class="followup-info">
+              <div class="followup-name">Demo Borrower D</div>
+              <!-- Pretext-managed -->
+              <p class="followup-detail" data-pretext>
+                File update required · Missing ITR document · Scheduled follow-up today 3:00pm
+              </p>
+            </div>
+            <div class="followup-right">
+              <div class="followup-loan">₹62,00,000</div>
+              <div class="followup-bank">ICICI Bank</div>
+              <button class="action-btn action-btn-muted" aria-label="Send reminder to Demo Borrower D">Remind</button>
+            </div>
+          </li>
+
+          <!-- Normal — lower priority -->
+          <li class="followup-item">
+            <div class="followup-avatar" aria-hidden="true">DE</div>
+            <div class="followup-info">
+              <div class="followup-name">Demo Borrower E</div>
+              <!-- Pretext-managed -->
+              <p class="followup-detail" data-pretext>
+                Approval follow-up · SBI Home Loan · Application submitted 8 days ago · No update
+              </p>
+            </div>
+            <div class="followup-right">
+              <div class="followup-loan">₹55,00,000</div>
+              <div class="followup-bank">SBI</div>
+              <button class="action-btn action-btn-muted" aria-label="Call SBI RM for Demo Borrower E update">Call RM</button>
+            </div>
+          </li>
+
+        </ol>
+      </section>
+
+      <!-- RECENT FILES TABLE -->
+      <section aria-labelledby="files-heading">
+        <div class="section-header">
+          <h2 class="section-title" id="files-heading">Recent Files</h2>
+          <button class="btn btn-ghost btn-sm">View all 84 →</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Borrower</th>
+                <th scope="col">Loan Type</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Bank / NBFC</th>
+                <th scope="col">EMI Date</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-name">Demo Borrower F</td>
+                <td class="td-secondary">LAP</td>
+                <td class="td-amount">₹30,00,000</td>
+                <td class="td-secondary">ICICI Bank</td>
+                <td class="td-muted">12 May</td>
+                <td><span class="badge badge-applied"><span class="badge-dot" style="background:var(--info)"></span>Applied</span></td>
+              </tr>
+              <tr>
+                <td class="td-name">Demo Borrower G</td>
+                <td class="td-secondary">Personal Loan</td>
+                <td class="td-amount">₹8,00,000</td>
+                <td class="td-secondary">Bajaj Finserv</td>
+                <td class="td-muted">28 Apr</td>
+                <td><span class="badge badge-disbursed"><span class="badge-dot" style="background:var(--success)"></span>Disbursed</span></td>
+              </tr>
+              <tr>
+                <td class="td-name">Demo Borrower H</td>
+                <td class="td-secondary">Home Loan</td>
+                <td class="td-amount">₹72,00,000</td>
+                <td class="td-secondary">HDFC Bank</td>
+                <td class="td-muted">18 Apr</td>
+                <td><span class="badge badge-followup"><span class="badge-dot" style="background:var(--warning)"></span>Follow-up Due</span></td>
+              </tr>
+              <tr>
+                <td class="td-name">Demo Borrower I</td>
+                <td class="td-secondary">Business Loan</td>
+                <td class="td-amount">₹15,00,000</td>
+                <td class="td-secondary">Kotak Mahindra</td>
+                <td class="td-muted">—</td>
+                <td><span class="badge badge-lead"><span class="badge-dot" style="background:var(--text-muted)"></span>Lead</span></td>
+              </tr>
+              <tr>
+                <td class="td-name">Demo Borrower J</td>
+                <td class="td-secondary">Home Loan</td>
+                <td class="td-amount">₹85,00,000</td>
+                <td class="td-secondary">SBI</td>
+                <td class="td-muted">3 May</td>
+                <td><span class="badge badge-approved"><span class="badge-dot" style="background:var(--success)"></span>Approved</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div><!-- /view-followups -->
+
+    <!-- ── VIEW: ALL BORROWERS ──────────────────────────────────────── -->
+    <div id="view-borrowers" class="view-panel" hidden>
+  <header class="page-header">
+    <div><h1 class="page-title">All Borrowers</h1>
+      <p style="font-size:.8rem;color:var(--muted);margin-top:3px" id="borrow-lbl">Loading...</p></div>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportBorrowersCSV()">&#x2B07; Export CSV</button>
+      <button class="btn btn-primary btn-sm" onclick="openBorrowerModal()">+ Add Borrower</button>
+    </div>
+  </header>
+  <div class="tbl-actions">
+    <input class="tbl-search" id="borrow-q" placeholder="Search name, bank, type..." oninput="filterBorrowers()">
+    <select class="mini-sel" id="borrow-st" onchange="filterBorrowers()">
+      <option value="">All Status</option><option value="lead">Lead</option>
+      <option value="applied">Applied</option><option value="approved">Approved</option>
+      <option value="disbursed">Disbursed</option><option value="overdue">Overdue</option>
+    </select>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Loan Type</th>
+      <th>Amount</th><th>Bank</th><th>CIBIL</th><th>EMI Date</th><th>Status</th><th>Actions</th>
+    </tr></thead><tbody id="borrow-tbody"></tbody>
+  </table></div>
+</div><!-- /view-borrowers -->
+
+    <!-- ── VIEW: ACTIVE FILES ────────────────────────────────────────── -->
+    <div id="view-files" class="view-panel" hidden>
+      <header class="page-header">
+        <div>
+          <h1 class="page-title">Active Files</h1>
+          <p style="font-size:0.8125rem;color:var(--text-muted);margin-top:3px" id="afiles-lbl">Loading...</p>
+        </div>
+        <div class="header-actions">
+          <select class="mini-sel" id="afiles-st" onchange="renderActiveFiles()" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text-primary);font-size:12px;">
+            <option value="">All Active</option>
+            <option value="lead">Lead</option>
+            <option value="applied">Applied</option>
+            <option value="approved">Approved</option>
+            <option value="disbursed">Disbursed</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="openBorrowerModal()">+ New File</button>
+        </div>
+      </header>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Borrower</th><th>Loan Type</th><th>Amount</th><th>Bank / NBFC</th><th>CIBIL</th><th>EMI Date</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="afiles-tbody"></tbody>
+        </table>
+      </div>
+    </div><!-- /view-files -->
+
+    <!-- ── VIEW: FOLLOW-UP CALENDAR ──────────────────────────────────── -->
+    <div id="view-calendar" class="view-panel" hidden>
+      <header class="page-header">
+        <div>
+          <h1 class="page-title">Follow-up Calendar</h1>
+          <p style="font-size:0.8125rem;color:var(--text-muted);margin-top:3px" id="cal-label">April 2026</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" onclick="calPrev()">← Prev</button>
+          <button class="btn btn-secondary btn-sm" onclick="calNext()">Next →</button>
+          <button class="btn btn-primary btn-sm" onclick="openFollowupModal()">+ Schedule Follow-up</button>
+        </div>
+      </header>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:var(--sp-5)">
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);background:var(--surface-2);border-bottom:1px solid var(--border)">
+          <div style="padding:10px;text-align:center;font-size:11px;font-weight:600;color:var(--text-muted)">Sun</div><div style="padding:10px;text-align:center;font-size:11px;font-weight:600;color:var(--text-muted)">Mon</div><div style="padding:10px;text-align:center;font-size:11px;font-weight:600;color:var(--text-muted)">Tue</div><div style="padding:10px;text-align:center;font-size:11px;font-weight:600;color:var(--text-muted)">Wed</div><div style="padding:10px;text-align:center;font-size:11px;font-weight:600;color:var(--text-muted)">Thu</div><div style="padding:10px;text-align:center;font-size:11px;font-weight:600;color:var(--text-muted)">Fri</div><div style="padding:10px;text-align:center;font-size:11px;font-weight:600;color:var(--text-muted)">Sat</div>
+        </div>
+        <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr)"></div>
+      </div>
+    </div><!-- /view-calendar -->
+
+    <!-- ── VIEW: ELIGIBILITY CHECK ───────────────────────────────────── -->
+    <div id="view-eligibility" class="view-panel" hidden>
+  <div id="elig-cards">
+    <header class="page-header">
+      <div><h1 class="page-title">Eligibility Check</h1>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:3px">Select loan type</p></div>
+    </header>
+    <div class="prod-grid">
+      <div class="prod-card pc-bl" onclick="showEligCard(this)">
+        <span class="pc-emoji">&#x1F3E2;</span>
+        <div class="pc-title">Business Loan</div>
+        <div class="pc-sub">Working capital, machinery, expansion loans</div>
+        <span class="pc-arr">&#x2192;</span>
+      </div>
+      <div class="prod-card pc-pl" onclick="showEligCard(this)">
+        <span class="pc-emoji">&#x1F464;</span>
+        <div class="pc-title">Personal Loan</div>
+        <div class="pc-sub">Unsecured loans for salaried and self-employed</div>
+        <span class="pc-arr">&#x2192;</span>
+      </div>
+      <div class="prod-card pc-hl" onclick="showEligCard(this)">
+        <span class="pc-emoji">&#x1F3E0;</span>
+        <div class="pc-title">Home Loan</div>
+        <div class="pc-sub">Purchase, construction, resale, plot + construction</div>
+        <span class="pc-arr">&#x2192;</span>
+      </div>
+      <div class="prod-card pc-lap" onclick="showEligCard(this)">
+        <span class="pc-emoji">&#x1F3E6;</span>
+        <div class="pc-title">Loan Against Property</div>
+        <div class="pc-sub">Residential, commercial, industrial, plot mortgage</div>
+        <span class="pc-arr">&#x2192;</span>
+      </div>
+    </div>
+  </div>
+  <div id="elig-engine" style="display:none;">
+    <div class="back-bar">
+      <button class="back-btn" onclick="hideEligCard()">&#x2190; Back</button>
+      <span id="elig-title" style="font-family:Syne,sans-serif;font-weight:700;font-size:16px;"></span>
+    </div>
+    <div id="elig-msg" style="display:none;padding:40px;text-align:center;background:var(--surface);border:1px dashed var(--border);border-radius:10px;color:var(--text-primary);font-size:14px;margin-bottom:10px;"></div>
+    <div class="iframe-wrap">
+      <iframe id="elig-frame" src="" loading="lazy"></iframe>
+    </div>
+  </div>
+</div><!-- /view-eligibility -->
+
+    <!-- ── VIEW: BANKER DIRECTORY ────────────────────────────────────── -->
+    <div id="view-bankers" class="view-panel" hidden>
+  <header class="page-header">
+    <div><h1 class="page-title">Banker Directory</h1>
+      <p style="font-size:.8rem;color:var(--muted);margin-top:3px" id="bankers-lbl">Loading...</p></div>
+    <div class="header-actions">
+      <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+        &#x1F4CA; Import Excel
+        <input type="file" id="xl-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importXL(this)">
+      </label>
+      <button class="btn btn-primary btn-sm" onclick="openContactModal()">+ Add Contact</button>
+    </div>
+  </header>
+  <div class="tbl-actions">
+    <input class="tbl-search" id="banker-q" placeholder="Search name, bank, role..." oninput="filterBankers()">
+  </div>
+  <div class="contact-grid" id="bankers-grid"></div>
+</div><!-- /view-bankers -->
+
+    <!-- ── VIEW: PAYOUT CALCULATOR ───────────────────────────────────── -->
+    <div id="view-payout" class="view-panel" hidden>
+  <header class="page-header">
+    <div><h1 class="page-title">Payout Calculator</h1>
+      <p style="font-size:.8rem;color:var(--muted);margin-top:3px">DSA commission with GST &amp; TDS</p></div>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportPayCSV()">&#x2B07; Export CSV</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportPayPDF()">📄 Download PDF</button>
+      <button class="btn btn-primary btn-sm" onclick="addPayRow()">+ Add Customer</button>
+    </div>
+  </header>
+  <div class="pay-table-wrap">
+    <table class="pay-tbl">
+      <thead><tr><th>#</th><th style="min-width:120px">Customer</th><th>Loan Type</th>
+        <th>Loan Amt</th><th>Payout %</th><th>Gross</th>
+        <th>GST?</th><th>GST Amt</th><th>TDS</th><th>Net Credit</th><th></th>
+      </tr></thead>
+      <tbody id="pay-tbody"></tbody>
+      <tfoot><tr>
+        <td colspan="5" style="text-align:right;padding-right:10px;color:var(--muted);font-size:11px;">TOTALS</td>
+        <td id="tot-g">&#x20B9;0</td><td></td><td id="tot-gst">&#x20B9;0</td>
+        <td id="tot-tds">&#x20B9;0</td><td id="tot-net">&#x20B9;0</td><td></td>
+      </tr></tfoot>
+    </table>
+  </div>
+  <p style="margin-top:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:12px;color:var(--muted);">
+    TDS = 10% &nbsp;&#183;&nbsp; GST Yes: Net = Gross + 18% GST &#8722; TDS &nbsp;&#183;&nbsp; GST No: Net = Gross &#8722; TDS
+  </p>
+</div><!-- /view-payout -->
+
+    <!-- ── VIEW: BANK POLICIES ───────────────────────────────────────── -->
+    <div id="view-policies" class="view-panel" hidden>
+  <div id="pol-cards">
+    <header class="page-header">
+      <div><h1 class="page-title">Bank Policies</h1>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:3px">Manage policies by loan category</p></div>
+    </header>
+    <div class="prod-grid">
+      <div class="prod-card pc-bl" onclick="showPolCat('business')">
+        <span class="pc-emoji">&#x1F3E2;</span>
+        <div class="pc-title">Business Loan</div>
+        <div class="pc-sub" id="pc-bl-cnt">0 policies</div>
+        <span class="pc-arr">&#x2192;</span>
+      </div>
+      <div class="prod-card pc-pl" onclick="showPolCat('personal')">
+        <span class="pc-emoji">&#x1F464;</span>
+        <div class="pc-title">Personal Loan</div>
+        <div class="pc-sub" id="pc-pl-cnt">0 policies</div>
+        <span class="pc-arr">&#x2192;</span>
+      </div>
+      <div class="prod-card pc-hl" onclick="showPolCat('home')">
+        <span class="pc-emoji">&#x1F3E0;</span>
+        <div class="pc-title">Home Loan</div>
+        <div class="pc-sub" id="pc-hl-cnt">0 policies</div>
+        <span class="pc-arr">&#x2192;</span>
+      </div>
+      <div class="prod-card pc-lap" onclick="showPolCat('lap')">
+        <span class="pc-emoji">&#x1F3E6;</span>
+        <div class="pc-title">Loan Against Property</div>
+        <div class="pc-sub" id="pc-lap-cnt">0 policies</div>
+        <span class="pc-arr">&#x2192;</span>
+      </div>
+    </div>
+  </div>
+  <div id="pol-cat-area" style="display:none;">
+    <div class="back-bar">
+      <button class="back-btn" onclick="hidePolCat()">&#x2190; Back</button>
+      <span id="pol-cat-title" style="font-family:Syne,sans-serif;font-weight:700;font-size:16px;"></span>
+      <div style="flex:1;"></div>
+      <label class="btn btn-secondary btn-sm" style="cursor:pointer;">📊 Import Excel
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importPolExcel(this)">
+      </label>
+      <button class="btn btn-secondary btn-sm" onclick="openPastePol()">&#x1F4CB; Paste Policy</button>
+      <button class="btn btn-primary btn-sm" onclick="openAddPol()">+ Add Policy</button>
+    </div>
+    <div id="pol-list"></div>
+    <div id="pol-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);">
+      No policies yet. Paste a WhatsApp message or add manually.
+    </div>
+  </div>
+</div><!-- /view-policies -->
+
+
+    <!-- ── VIEW: FILES DUMP ──────────────────────────────────────────── -->
+    <div id="view-filesdump" class="view-panel" hidden>
+      <div id="dump-cards">
+        <header class="page-header">
+          <div><h1 class="page-title">Files Dump</h1>
+            <p style="font-size:.8rem;color:var(--muted);margin-top:3px">Store customer credit profiles for bank review · Select loan category</p></div>
+        </header>
+        <div class="prod-grid">
+          <div class="prod-card pc-bl" onclick="showDumpCat('business')">
+            <span class="pc-emoji">🏢</span>
+            <div class="pc-title">Business Loan</div>
+            <div class="pc-sub" id="dc-bl-cnt">0 profiles</div>
+            <span class="pc-arr">→</span>
+          </div>
+          <div class="prod-card pc-pl" onclick="showDumpCat('personal')">
+            <span class="pc-emoji">👤</span>
+            <div class="pc-title">Personal Loan</div>
+            <div class="pc-sub" id="dc-pl-cnt">0 profiles</div>
+            <span class="pc-arr">→</span>
+          </div>
+          <div class="prod-card pc-hl" onclick="showDumpCat('home')">
+            <span class="pc-emoji">🏠</span>
+            <div class="pc-title">Home Loan</div>
+            <div class="pc-sub" id="dc-hl-cnt">0 profiles</div>
+            <span class="pc-arr">→</span>
+          </div>
+          <div class="prod-card pc-lap" onclick="showDumpCat('lap')">
+            <span class="pc-emoji">🏦</span>
+            <div class="pc-title">Loan Against Property</div>
+            <div class="pc-sub" id="dc-lap-cnt">0 profiles</div>
+            <span class="pc-arr">→</span>
+          </div>
+        </div>
+      </div>
+      <div id="dump-area" style="display:none;">
+        <div class="back-bar">
+          <button class="back-btn" onclick="hideDumpCat()">← Back</button>
+          <span id="dump-title" style="font-family:Syne,sans-serif;font-weight:700;font-size:16px;"></span>
+          <div style="flex:1"></div>
+          <button class="btn btn-primary btn-sm" id="dump-add-btn" onclick="openDumpModal()">+ Add Profile</button>
+        </div>
+        <div id="dump-list"></div>
+        <div id="dump-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);">
+          No profiles yet. Click + Add Profile to create one.
+        </div>
+      </div>
+    </div><!-- /view-filesdump -->
+
+    <!-- ── VIEW: SETTINGS ────────────────────────────────────────────── -->
+    <div id="view-settings" class="view-panel" hidden>
+      <header class="page-header">
+        <div><h1 class="page-title">Settings</h1></div>
+        <div class="header-actions"><button class="btn btn-primary btn-sm">Save Changes</button></div>
+      </header>
+      <div style="display:flex;flex-direction:column;gap:var(--sp-4);max-width:560px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--sp-5)">
+          <div style="font-family:var(--font-display);font-weight:700;margin-bottom:var(--sp-4)">Profile</div>
+          <div style="display:flex;flex-direction:column;gap:var(--sp-3)">
+            <div><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Full Name</label><input type="text" value="Demo User" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:13px;background:var(--surface-2);color:var(--text-primary);outline:none"></div>
+            <div><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Business / Agency Name</label><input type="text" value="My DSA Agency" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:13px;background:var(--surface-2);color:var(--text-primary);outline:none"></div>
+            <div><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Mobile Number</label><input type="tel" value="+91 98×× ××××××" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:13px;background:var(--surface-2);color:var(--text-primary);outline:none"></div>
+          </div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--sp-5)">
+          <div style="font-family:var(--font-display);font-weight:700;margin-bottom:var(--sp-4)">WhatsApp Integration</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--sp-3) 0;border-bottom:1px solid var(--border)">
+            <div><div style="font-size:13px;font-weight:500">WhatsApp Business API</div><div style="font-size:12px;color:var(--text-muted)">Auto-send EMI reminders to borrowers</div></div>
+            <span style="background:var(--error-bg);color:var(--error);font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px">Not Connected</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--sp-3) 0">
+            <div><div style="font-size:13px;font-weight:500">Auto-send EMI reminders</div><div style="font-size:12px;color:var(--text-muted)">D-3, D-2, D-1 before due date</div></div>
+            <div style="width:36px;height:20px;border-radius:10px;background:var(--primary);position:relative;cursor:pointer"><div style="width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;right:2px;transition:.2s"></div></div>
+          </div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--sp-5)">
+          <div style="font-family:var(--font-display);font-weight:700;margin-bottom:var(--sp-4)">Notifications</div>
+          <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+            <label style="display:flex;align-items:center;gap:var(--sp-2);font-size:13px;cursor:pointer"><input type="checkbox" checked> Daily follow-up digest (8:00 AM)</label>
+            <label style="display:flex;align-items:center;gap:var(--sp-2);font-size:13px;cursor:pointer"><input type="checkbox" checked> Overdue alert (immediate)</label>
+            <label style="display:flex;align-items:center;gap:var(--sp-2);font-size:13px;cursor:pointer"><input type="checkbox"> Weekly payout summary</label>
+            <label style="display:flex;align-items:center;gap:var(--sp-2);font-size:13px;cursor:pointer"><input type="checkbox" checked> Policy update notifications</label>
+          </div>
+        </div>
+      </div>
+    </div><!-- /view-settings -->
+
+    <!-- ── VIEW: SUPPORT ─────────────────────────────────────────────── -->
+    <div id="view-support" class="view-panel" hidden>
+      <header class="page-header">
+        <div><h1 class="page-title">Support</h1><p style="font-size:0.8125rem;color:var(--text-muted);margin-top:3px">We're here to help</p></div>
+      </header>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-5)">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--sp-6)">
+          <div style="font-family:var(--font-display);font-weight:700;margin-bottom:var(--sp-4)">Contact Us</div>
+          <div style="display:flex;flex-direction:column;gap:var(--sp-4)">
+            <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--border);border-radius:var(--radius-md)">
+              <span style="font-size:20px">📞</span>
+              <div><div style="font-size:13px;font-weight:600">Call Support</div><div style="font-size:12px;color:var(--text-muted)">Mon–Sat, 9am–6pm</div><div style="font-size:13px;color:var(--primary);margin-top:2px">1800-CAN-CRM</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--border);border-radius:var(--radius-md)">
+              <span style="font-size:20px">💬</span>
+              <div><div style="font-size:13px;font-weight:600">WhatsApp Support</div><div style="font-size:12px;color:var(--text-muted)">Avg reply time: 15 minutes</div><div style="font-size:13px;color:var(--accent);margin-top:2px">+91 98×× ××××××</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--border);border-radius:var(--radius-md)">
+              <span style="font-size:20px">✉</span>
+              <div><div style="font-size:13px;font-weight:600">Email Support</div><div style="font-size:12px;color:var(--text-muted)">Response within 4 hours</div><div style="font-size:13px;color:var(--primary);margin-top:2px"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c8bbbdb8b8a7babc88aba9a6e5abbaa5e6a1a6">[email&#160;protected]</a></div></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--sp-6)">
+          <div style="font-family:var(--font-display);font-weight:700;margin-bottom:var(--sp-4)">Quick Help</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <a href="#" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-md);text-decoration:none;color:var(--text-primary);font-size:13px;transition:background .15s" onmouseover="this.style.background='var(--primary-muted)'" onmouseout="this.style.background='var(--surface-2)'"><span>How to add a borrower</span><span style="color:var(--text-muted)">→</span></a>
+            <a href="#" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-md);text-decoration:none;color:var(--text-primary);font-size:13px;transition:background .15s" onmouseover="this.style.background='var(--primary-muted)'" onmouseout="this.style.background='var(--surface-2)'"><span>Setting up WhatsApp reminders</span><span style="color:var(--text-muted)">→</span></a>
+            <a href="#" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-md);text-decoration:none;color:var(--text-primary);font-size:13px;transition:background .15s" onmouseover="this.style.background='var(--primary-muted)'" onmouseout="this.style.background='var(--surface-2)'"><span>Understanding the Eligibility Engine</span><span style="color:var(--text-muted)">→</span></a>
+            <a href="#" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-md);text-decoration:none;color:var(--text-primary);font-size:13px;transition:background .15s" onmouseover="this.style.background='var(--primary-muted)'" onmouseout="this.style.background='var(--surface-2)'"><span>Importing borrowers from Excel</span><span style="color:var(--text-muted)">→</span></a>
+            <a href="#" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-md);text-decoration:none;color:var(--text-primary);font-size:13px;transition:background .15s" onmouseover="this.style.background='var(--primary-muted)'" onmouseout="this.style.background='var(--surface-2)'"><span>How payout commission is calculated</span><span style="color:var(--text-muted)">→</span></a>
+          </div>
+        </div>
+      </div>
+    </div><!-- /view-support -->
+
+    </main>
+  </div>
+</div>
+
+<!-- THEME TOGGLE -->
+<button class="theme-btn" id="theme-btn-float" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
+
+<!-- PRETEXT — dynamic text layout engine -->
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
+// Self-hosted pretext — no CDN dependency. Vendor file from gstack/design-html/vendor/pretext.js
+// pretext v1 — self-hosted (zero CDN dependency)
+// Source: gstack/design-html/vendor/pretext.js
+var x0=["BN","BN","BN","BN","BN","BN","BN","BN","BN","S","B","S","WS","B","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","B","B","B","S","WS","ON","ON","ET","ET","ET","ON","ON","ON","ON","ON","ON","CS","ON","CS","ON","EN","EN","EN","EN","EN","EN","EN","EN","EN","EN","ON","ON","ON","ON","ON","ON","ON","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","ON","ON","ON","ON","ON","ON","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","ON","ON","ON","ON","BN","BN","BN","BN","BN","BN","B","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","CS","ON","ET","ET","ET","ET","ON","ON","ON","ON","L","ON","ON","ON","ON","ON","ET","ET","EN","EN","ON","L","ON","ON","ON","EN","L","ON","ON","ON","ON","ON","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","ON","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","ON","L","L","L","L","L","L","L","L"],g0=["AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","CS","AL","ON","ON","NSM","NSM","NSM","NSM","NSM","NSM","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","AL","AL","AL","AL","AL","AL","AL","AN","AN","AN","AN","AN","AN","AN","AN","AN","AN","ET","AN","AN","AL","AL","AL","NSM","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","ON","NSM","NSM","NSM","NSM","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL"];function m0(O){if(O<=255)return x0[O];if(1424<=O&&O<=1524)return"R";if(1536<=O&&O<=1791)return g0[O&255];if(1792<=O&&O<=2220)return"AL";return"L"}function r0(O){let _=O.length;if(_===0)return null;let J=Array(_),Y=0;for(let V=0;V<_;V++){let $=m0(O.charCodeAt(V));if($==="R"||$==="AL"||$==="AN")Y++;J[V]=$}if(Y===0)return null;let X=_/Y<0.3?0:1,R=new Int8Array(_);for(let V=0;V<_;V++)R[V]=X;let Z=X&1?"R":"L",Q=Z,f=Q;for(let V=0;V<_;V++)if(J[V]==="NSM")J[V]=f;else f=J[V];f=Q;for(let V=0;V<_;V++){let $=J[V];if($==="EN")J[V]=f==="AL"?"AN":"EN";else if($==="R"||$==="L"||$==="AL")f=$}for(let V=0;V<_;V++)if(J[V]==="AL")J[V]="R";for(let V=1;V<_-1;V++){if(J[V]==="ES"&&J[V-1]==="EN"&&J[V+1]==="EN")J[V]="EN";if(J[V]==="CS"&&(J[V-1]==="EN"||J[V-1]==="AN")&&J[V+1]===J[V-1])J[V]=J[V-1]}for(let V=0;V<_;V++){if(J[V]!=="EN")continue;let $;for($=V-1;$>=0&&J[$]==="ET";$--)J[$]="EN";for($=V+1;$<_&&J[$]==="ET";$++)J[$]="EN"}for(let V=0;V<_;V++){let $=J[V];if($==="WS"||$==="ES"||$==="ET"||$==="CS")J[V]="ON"}f=Q;for(let V=0;V<_;V++){let $=J[V];if($==="EN")J[V]=f==="L"?"L":"EN";else if($==="R"||$==="L")f=$}for(let V=0;V<_;V++){if(J[V]!=="ON")continue;let $=V+1;while($<_&&J[$]==="ON")$++;let u=V>0?J[V-1]:Q,q=$<_?J[$]:Q,D=u!=="L"?"R":"L";if(D===(q!=="L"?"R":"L"))for(let K=V;K<$;K++)J[K]=D;V=$-1}for(let V=0;V<_;V++)if(J[V]==="ON")J[V]=Z;for(let V=0;V<_;V++){let $=J[V];if((R[V]&1)===0){if($==="R")R[V]++;else if($==="AN"||$==="EN")R[V]+=2}else if($==="L"||$==="AN"||$==="EN")R[V]++}return R}function u0(O,_){let J=r0(O);if(J===null)return null;let Y=new Int8Array(_.length);for(let X=0;X<_.length;X++)Y[X]=J[_[X]];return Y}var a0=/[ \t\n\r\f]+/g,s0=/[\t\n\r\f]| {2,}|^ | $/;function d0(O){let _=O??"normal";return _==="pre-wrap"?{mode:_,preserveOrdinarySpaces:!0,preserveHardBreaks:!0}:{mode:_,preserveOrdinarySpaces:!1,preserveHardBreaks:!1}}function i0(O){if(!s0.test(O))return O;let _=O.replace(a0," ");if(_.charCodeAt(0)===32)_=_.slice(1);if(_.length>0&&_.charCodeAt(_.length-1)===32)_=_.slice(0,-1);return _}function t0(O){if(!/[\r\f]/.test(O))return O.replace(/\r\n/g,`
+`);return O.replace(/\r\n/g,`
+`).replace(/[\r\f]/g,`
+`)}var d=null,V0;function n0(){if(d===null)d=new Intl.Segmenter(V0,{granularity:"word"});return d}function z0(){d=null}function j0(O){let _=O&&O.length>0?O:void 0;if(V0===_)return;V0=_,d=null}var e0=/\p{Script=Arabic}/u,O0=/\p{M}/u,b0=/\p{Nd}/u;function X0(O){return e0.test(O)}function p(O){for(let _ of O){let J=_.codePointAt(0);if(J>=19968&&J<=40959||J>=13312&&J<=19903||J>=131072&&J<=173791||J>=173824&&J<=177983||J>=177984&&J<=178207||J>=178208&&J<=183983||J>=183984&&J<=191471||J>=196608&&J<=201551||J>=63744&&J<=64255||J>=194560&&J<=195103||J>=12288&&J<=12351||J>=12352&&J<=12447||J>=12448&&J<=12543||J>=44032&&J<=55215||J>=65280&&J<=65519)return!0}return!1}var $0=new Set(["，","．","！","：","；","？","、","。","・","）","〕","〉","》","」","』","】","〗","〙","〛","ー","々","〻","ゝ","ゞ","ヽ","ヾ"]),i=new Set(['"',"(","[","{","“","‘","«","‹","（","〔","〈","《","「","『","【","〖","〘","〚"]),Q0=new Set(["'","’"]),r=new Set([".",",","!","?",":",";","،","؛","؟","।","॥","၊","။","၌","၍","၏",")","]","}","%",'"',"”","’","»","›","…"]),OO=new Set([":",".","،","؛"]),_O=new Set(["၏"]),JO=new Set(["”","’","»","›","」","』","】","》","〉","〕","）"]);function RO(O){if(q0(O))return!0;let _=!1;for(let J of O){if(r.has(J)){_=!0;continue}if(_&&O0.test(J))continue;return!1}return _}function VO(O){for(let _ of O)if(!$0.has(_)&&!r.has(_))return!1;return O.length>0}function XO(O){if(q0(O))return!0;for(let _ of O)if(!i.has(_)&&!Q0.has(_)&&!O0.test(_))return!1;return O.length>0}function q0(O){let _=!1;for(let J of O){if(J==="\\"||O0.test(J))continue;if(i.has(J)||r.has(J)||Q0.has(J)){_=!0;continue}return!1}return _}function YO(O){let _=Array.from(O),J=_.length;while(J>0){let Y=_[J-1];if(O0.test(Y)){J--;continue}if(i.has(Y)||Q0.has(Y)){J--;continue}break}if(J<=0||J===_.length)return null;return{head:_.slice(0,J).join(""),tail:_.slice(J).join("")}}function ZO(O,_){if(O.length===0)return!1;for(let J of O)if(J!==_)return!1;return!0}function $O(O){if(!X0(O)||O.length===0)return!1;return OO.has(O[O.length-1])}function QO(O){if(O.length===0)return!1;return _O.has(O[O.length-1])}function qO(O){if(O.length<2||O[0]!==" ")return null;let _=O.slice(1);if(/^\p{M}+$/u.test(_))return{space:" ",marks:_};return null}function D0(O){for(let _=O.length-1;_>=0;_--){let J=O[_];if(JO.has(J))return!0;if(!r.has(J))return!1}return!1}function DO(O,_){if(_.preserveOrdinarySpaces||_.preserveHardBreaks){if(O===" ")return"preserved-space";if(O==="\t")return"tab";if(_.preserveHardBreaks&&O===`
+`)return"hard-break"}if(O===" ")return"space";if(O===" "||O===" "||O==="⁠"||O==="\uFEFF")return"glue";if(O==="​")return"zero-width-break";if(O==="­")return"soft-hyphen";return"text"}function NO(O,_,J,Y){let X=[],R=null,Z="",Q=J,f=!1,V=0;for(let $ of O){let u=DO($,Y),q=u==="text"&&_;if(R!==null&&u===R&&q===f){Z+=$,V+=$.length;continue}if(R!==null)X.push({text:Z,isWordLike:f,kind:R,start:Q});R=u,Z=$,Q=J+V,f=q,V+=$.length}if(R!==null)X.push({text:Z,isWordLike:f,kind:R,start:Q});return X}function Y0(O){return O==="space"||O==="preserved-space"||O==="zero-width-break"||O==="hard-break"}var fO=/^[A-Za-z][A-Za-z0-9+.-]*:$/;function HO(O,_){let J=O.texts[_];if(J.startsWith("www."))return!0;return fO.test(J)&&_+1<O.len&&O.kinds[_+1]==="text"&&O.texts[_+1]==="//"}function UO(O){return O.includes("?")&&(O.includes("://")||O.startsWith("www."))}function MO(O){let _=O.texts.slice(),J=O.isWordLike.slice(),Y=O.kinds.slice(),X=O.starts.slice();for(let Z=0;Z<O.len;Z++){if(Y[Z]!=="text"||!HO(O,Z))continue;let Q=Z+1;while(Q<O.len&&!Y0(Y[Q])){_[Z]+=_[Q],J[Z]=!0;let f=_[Q].includes("?");if(Y[Q]="text",_[Q]="",Q++,f)break}}let R=0;for(let Z=0;Z<_.length;Z++){let Q=_[Z];if(Q.length===0)continue;if(R!==Z)_[R]=Q,J[R]=J[Z],Y[R]=Y[Z],X[R]=X[Z];R++}return _.length=R,J.length=R,Y.length=R,X.length=R,{len:R,texts:_,isWordLike:J,kinds:Y,starts:X}}function CO(O){let _=[],J=[],Y=[],X=[];for(let R=0;R<O.len;R++){let Z=O.texts[R];if(_.push(Z),J.push(O.isWordLike[R]),Y.push(O.kinds[R]),X.push(O.starts[R]),!UO(Z))continue;let Q=R+1;if(Q>=O.len||Y0(O.kinds[Q]))continue;let f="",V=O.starts[Q],$=Q;while($<O.len&&!Y0(O.kinds[$]))f+=O.texts[$],$++;if(f.length>0)_.push(f),J.push(!0),Y.push("text"),X.push(V),R=$-1}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}var FO=new Set([":","-","/","×",",",".","+","–","—"]),K0=/^[A-Za-z0-9_]+[,:;]*$/,vO=/[,:;]+$/;function E0(O){for(let _ of O)if(b0.test(_))return!0;return!1}function Z0(O){if(O.length===0)return!1;for(let _ of O){if(b0.test(_)||FO.has(_))continue;return!1}return!0}function uO(O){let _=[],J=[],Y=[],X=[];for(let R=0;R<O.len;R++){let Z=O.texts[R],Q=O.kinds[R];if(Q==="text"&&Z0(Z)&&E0(Z)){let f=Z,V=R+1;while(V<O.len&&O.kinds[V]==="text"&&Z0(O.texts[V]))f+=O.texts[V],V++;_.push(f),J.push(!0),Y.push("text"),X.push(O.starts[R]),R=V-1;continue}_.push(Z),J.push(O.isWordLike[R]),Y.push(Q),X.push(O.starts[R])}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function KO(O){let _=[],J=[],Y=[],X=[];for(let R=0;R<O.len;R++){let Z=O.texts[R],Q=O.kinds[R],f=O.isWordLike[R];if(Q==="text"&&f&&K0.test(Z)){let V=Z,$=R+1;while(vO.test(V)&&$<O.len&&O.kinds[$]==="text"&&O.isWordLike[$]&&K0.test(O.texts[$]))V+=O.texts[$],$++;_.push(V),J.push(!0),Y.push("text"),X.push(O.starts[R]),R=$-1;continue}_.push(Z),J.push(f),Y.push(Q),X.push(O.starts[R])}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function zO(O){let _=[],J=[],Y=[],X=[];for(let R=0;R<O.len;R++){let Z=O.texts[R];if(O.kinds[R]==="text"&&Z.includes("-")){let Q=Z.split("-"),f=Q.length>1;for(let V=0;V<Q.length;V++){let $=Q[V];if(!f)break;if($.length===0||!E0($)||!Z0($))f=!1}if(f){let V=0;for(let $=0;$<Q.length;$++){let u=Q[$],q=$<Q.length-1?`${u}-`:u;_.push(q),J.push(!0),Y.push("text"),X.push(O.starts[R]+V),V+=q.length}continue}}_.push(Z),J.push(O.isWordLike[R]),Y.push(O.kinds[R]),X.push(O.starts[R])}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function jO(O){let _=[],J=[],Y=[],X=[],R=0;while(R<O.len){let Z=O.texts[R],Q=O.isWordLike[R],f=O.kinds[R],V=O.starts[R];if(f==="glue"){let $=Z,u=V;R++;while(R<O.len&&O.kinds[R]==="glue")$+=O.texts[R],R++;if(R<O.len&&O.kinds[R]==="text")Z=$+O.texts[R],Q=O.isWordLike[R],f="text",V=u,R++;else{_.push($),J.push(!1),Y.push("glue"),X.push(u);continue}}else R++;if(f==="text")while(R<O.len&&O.kinds[R]==="glue"){let $="";while(R<O.len&&O.kinds[R]==="glue")$+=O.texts[R],R++;if(R<O.len&&O.kinds[R]==="text"){Z+=$+O.texts[R],Q=Q||O.isWordLike[R],R++;continue}Z+=$}_.push(Z),J.push(Q),Y.push(f),X.push(V)}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function bO(O){let _=O.texts.slice(),J=O.isWordLike.slice(),Y=O.kinds.slice(),X=O.starts.slice();for(let R=0;R<_.length-1;R++){if(Y[R]!=="text"||Y[R+1]!=="text")continue;if(!p(_[R])||!p(_[R+1]))continue;let Z=YO(_[R]);if(Z===null)continue;_[R]=Z.head,_[R+1]=Z.tail+_[R+1],X[R+1]=X[R]+Z.head.length}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function EO(O,_,J){let Y=n0(),X=0,R=[],Z=[],Q=[],f=[];for(let q of Y.segment(O))for(let D of NO(q.segment,q.isWordLike??!1,q.index,J)){let b=D.kind==="text";if(_.carryCJKAfterClosingQuote&&b&&X>0&&Q[X-1]==="text"&&p(D.text)&&p(R[X-1])&&D0(R[X-1]))R[X-1]+=D.text,Z[X-1]=Z[X-1]||D.isWordLike;else if(b&&X>0&&Q[X-1]==="text"&&VO(D.text)&&p(R[X-1]))R[X-1]+=D.text,Z[X-1]=Z[X-1]||D.isWordLike;else if(b&&X>0&&Q[X-1]==="text"&&QO(R[X-1]))R[X-1]+=D.text,Z[X-1]=Z[X-1]||D.isWordLike;else if(b&&X>0&&Q[X-1]==="text"&&D.isWordLike&&X0(D.text)&&$O(R[X-1]))R[X-1]+=D.text,Z[X-1]=!0;else if(b&&!D.isWordLike&&X>0&&Q[X-1]==="text"&&D.text.length===1&&D.text!=="-"&&D.text!=="—"&&ZO(R[X-1],D.text))R[X-1]+=D.text;else if(b&&!D.isWordLike&&X>0&&Q[X-1]==="text"&&(RO(D.text)||D.text==="-"&&Z[X-1]))R[X-1]+=D.text;else R[X]=D.text,Z[X]=D.isWordLike,Q[X]=D.kind,f[X]=D.start,X++}for(let q=1;q<X;q++)if(Q[q]==="text"&&!Z[q]&&q0(R[q])&&Q[q-1]==="text")R[q-1]+=R[q],Z[q-1]=Z[q-1]||Z[q],R[q]="";for(let q=X-2;q>=0;q--)if(Q[q]==="text"&&!Z[q]&&XO(R[q])){let D=q+1;while(D<X&&R[D]==="")D++;if(D<X&&Q[D]==="text")R[D]=R[q]+R[D],f[D]=f[q],R[q]=""}let V=0;for(let q=0;q<X;q++){let D=R[q];if(D.length===0)continue;if(V!==q)R[V]=D,Z[V]=Z[q],Q[V]=Q[q],f[V]=f[q];V++}R.length=V,Z.length=V,Q.length=V,f.length=V;let $=jO({len:V,texts:R,isWordLike:Z,kinds:Q,starts:f}),u=bO(KO(zO(uO(CO(MO($))))));for(let q=0;q<u.len-1;q++){let D=qO(u.texts[q]);if(D===null)continue;if(u.kinds[q]!=="space"&&u.kinds[q]!=="preserved-space"||u.kinds[q+1]!=="text"||!X0(u.texts[q+1]))continue;u.texts[q]=D.space,u.isWordLike[q]=!1,u.kinds[q]=u.kinds[q]==="preserved-space"?"preserved-space":"space",u.texts[q+1]=D.marks+u.texts[q+1],u.starts[q+1]=u.starts[q]+D.space.length}return u}function GO(O,_){if(O.len===0)return[];if(!_.preserveHardBreaks)return[{startSegmentIndex:0,endSegmentIndex:O.len,consumedEndSegmentIndex:O.len}];let J=[],Y=0;for(let X=0;X<O.len;X++){if(O.kinds[X]!=="hard-break")continue;J.push({startSegmentIndex:Y,endSegmentIndex:X,consumedEndSegmentIndex:X+1}),Y=X+1}if(Y<O.len)J.push({startSegmentIndex:Y,endSegmentIndex:O.len,consumedEndSegmentIndex:O.len});return J}function N0(O,_,J="normal"){let Y=d0(J),X=Y.mode==="pre-wrap"?t0(O):i0(O);if(X.length===0)return{normalized:X,chunks:[],len:0,texts:[],isWordLike:[],kinds:[],starts:[]};let R=EO(X,_,Y);return{normalized:X,chunks:GO(R,Y),...R}}var a=null,f0=new Map,s=null,PO=/\p{Emoji_Presentation}/u,AO=/[\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Regional_Indicator}\uFE0F\u20E3]/u,_0=null,H0=new Map;function U0(){if(a!==null)return a;if(typeof OffscreenCanvas<"u")return a=new OffscreenCanvas(1,1).getContext("2d"),a;if(typeof document<"u")return a=document.createElement("canvas").getContext("2d"),a;throw Error("Text measurement requires OffscreenCanvas or a DOM canvas context.")}function BO(O){let _=f0.get(O);if(!_)_=new Map,f0.set(O,_);return _}function x(O,_){let J=_.get(O);if(J===void 0)J={width:U0().measureText(O).width,containsCJK:p(O)},_.set(O,J);return J}function h(){if(s!==null)return s;if(typeof navigator>"u")return s={lineFitEpsilon:0.005,carryCJKAfterClosingQuote:!1,preferPrefixWidthsForBreakableRuns:!1,preferEarlySoftHyphenBreak:!1},s;let O=navigator.userAgent,J=navigator.vendor==="Apple Computer, Inc."&&O.includes("Safari/")&&!O.includes("Chrome/")&&!O.includes("Chromium/")&&!O.includes("CriOS/")&&!O.includes("FxiOS/")&&!O.includes("EdgiOS/"),Y=O.includes("Chrome/")||O.includes("Chromium/")||O.includes("CriOS/")||O.includes("Edg/");return s={lineFitEpsilon:J?0.015625:0.005,carryCJKAfterClosingQuote:Y,preferPrefixWidthsForBreakableRuns:J,preferEarlySoftHyphenBreak:J},s}function TO(O){let _=O.match(/(\d+(?:\.\d+)?)\s*px/);return _?parseFloat(_[1]):16}function M0(){if(_0===null)_0=new Intl.Segmenter(void 0,{granularity:"grapheme"});return _0}function wO(O){return PO.test(O)||O.includes("️")}function G0(O){return AO.test(O)}function yO(O,_){let J=H0.get(O);if(J!==void 0)return J;let Y=U0();Y.font=O;let X=Y.measureText("\uD83D\uDE00").width;if(J=0,X>_+0.5&&typeof document<"u"&&document.body!==null){let R=document.createElement("span");R.style.font=O,R.style.display="inline-block",R.style.visibility="hidden",R.style.position="absolute",R.textContent="\uD83D\uDE00",document.body.appendChild(R);let Z=R.getBoundingClientRect().width;if(document.body.removeChild(R),X-Z>0.5)J=X-Z}return H0.set(O,J),J}function LO(O){let _=0,J=M0();for(let Y of J.segment(O))if(wO(Y.segment))_++;return _}function WO(O,_){if(_.emojiCount===void 0)_.emojiCount=LO(O);return _.emojiCount}function g(O,_,J){if(J===0)return _.width;return _.width-WO(O,_)*J}function P0(O,_,J,Y){if(_.graphemeWidths!==void 0)return _.graphemeWidths;let X=[],R=M0();for(let Z of R.segment(O)){let Q=x(Z.segment,J);X.push(g(Z.segment,Q,Y))}return _.graphemeWidths=X.length>1?X:null,_.graphemeWidths}function A0(O,_,J,Y){if(_.graphemePrefixWidths!==void 0)return _.graphemePrefixWidths;let X=[],R=M0(),Z="";for(let Q of R.segment(O)){Z+=Q.segment;let f=x(Z,J);X.push(g(Z,f,Y))}return _.graphemePrefixWidths=X.length>1?X:null,_.graphemePrefixWidths}function B0(O,_){let J=U0();J.font=O;let Y=BO(O),X=TO(O),R=_?yO(O,X):0;return{cache:Y,fontSize:X,emojiCorrection:R}}function T0(){f0.clear(),H0.clear(),_0=null}function m(O){return O==="space"||O==="preserved-space"||O==="tab"||O==="zero-width-break"||O==="soft-hyphen"}function SO(O){return O==="space"}function w0(O,_){if(_<=0)return 0;let J=O%_;if(Math.abs(J)<=0.000001)return _;return _-J}function t(O,_,J,Y){if(!Y||_===null)return O[J];return _[J]-(J>0?_[J-1]:0)}function y0(O,_,J,Y,X,R){let Z=0,Q=_;while(Z<O.length){let f=R?_+O[Z]:Q+O[Z];if((Z+1<O.length?f+X:f)>J+Y)break;Q=f,Z++}return{fitCount:Z,fittedWidth:Q}}function L0(O,_){for(let J=0;J<O.chunks.length;J++){let Y=O.chunks[J];if(_<Y.consumedEndSegmentIndex)return J}return-1}function kO(O,_){let{segmentIndex:J,graphemeIndex:Y}=_;if(J>=O.widths.length)return null;if(Y>0)return _;let X=L0(O,J);if(X<0)return null;let R=O.chunks[X];if(R.startSegmentIndex===R.endSegmentIndex&&J===R.startSegmentIndex)return{segmentIndex:J,graphemeIndex:0};if(J<R.startSegmentIndex)J=R.startSegmentIndex;while(J<R.endSegmentIndex){let Z=O.kinds[J];if(Z!=="space"&&Z!=="zero-width-break"&&Z!=="soft-hyphen")return{segmentIndex:J,graphemeIndex:0};J++}if(R.consumedEndSegmentIndex>=O.widths.length)return null;return{segmentIndex:R.consumedEndSegmentIndex,graphemeIndex:0}}function W0(O,_){if(O.simpleLineWalkFastPath)return IO(O,_);return J0(O,_)}function IO(O,_){let{widths:J,kinds:Y,breakableWidths:X,breakablePrefixWidths:R}=O;if(J.length===0)return 0;let Z=h(),Q=Z.lineFitEpsilon,f=0,V=0,$=!1;function u(q){let D=J[q];if(D>_&&X[q]!==null){let b=X[q],K=R[q]??null;V=0;for(let j=0;j<b.length;j++){let B=t(b,K,j,Z.preferPrefixWidthsForBreakableRuns);if(V>0&&V+B>_+Q)f++,V=B;else{if(V===0)f++;V+=B}}}else V=D,f++;$=!0}for(let q=0;q<J.length;q++){let D=J[q],b=Y[q];if(!$){u(q);continue}let K=V+D;if(K>_+Q){if(SO(b))continue;V=0,$=!1,u(q);continue}V=K}if(!$)return f+1;return f}function cO(O,_,J){let{widths:Y,kinds:X,breakableWidths:R,breakablePrefixWidths:Z}=O;if(Y.length===0)return 0;let Q=h(),f=Q.lineFitEpsilon,V=0,$=0,u=!1,q=0,D=0,b=0,K=0,j=-1,B=0;function k(){j=-1,B=0}function y(H=b,z=K,W=$){V++,J?.({startSegmentIndex:q,startGraphemeIndex:D,endSegmentIndex:H,endGraphemeIndex:z,width:W}),$=0,u=!1,k()}function A(H,z){u=!0,q=H,D=0,b=H+1,K=0,$=z}function T(H,z,W){u=!0,q=H,D=z,b=H,K=z+1,$=W}function L(H,z){if(!u){A(H,z);return}$+=z,b=H+1,K=0}function C(H,z){if(!m(X[H]))return;j=H+1,B=$-z}function F(H){P(H,0)}function P(H,z){let W=R[H],c=Z[H]??null;for(let I=z;I<W.length;I++){let o=t(W,c,I,Q.preferPrefixWidthsForBreakableRuns);if(!u){T(H,I,o);continue}if($+o>_+f)y(),T(H,I,o);else $+=o,b=H,K=I+1}if(u&&b===H&&K===W.length)b=H+1,K=0}let E=0;while(E<Y.length){let H=Y[E],z=X[E];if(!u){if(H>_&&R[E]!==null)F(E);else A(E,H);C(E,H),E++;continue}if($+H>_+f){if(m(z)){L(E,H),y(E+1,0,$-H),E++;continue}if(j>=0){y(j,0,B);continue}if(H>_&&R[E]!==null){y(),F(E),E++;continue}y();continue}L(E,H),C(E,H),E++}if(u)y();return V}function J0(O,_,J){if(O.simpleLineWalkFastPath)return cO(O,_,J);let{widths:Y,lineEndFitAdvances:X,lineEndPaintAdvances:R,kinds:Z,breakableWidths:Q,breakablePrefixWidths:f,discretionaryHyphenWidth:V,tabStopAdvance:$,chunks:u}=O;if(Y.length===0||u.length===0)return 0;let q=h(),D=q.lineFitEpsilon,b=0,K=0,j=!1,B=0,k=0,y=0,A=0,T=-1,L=0,C=0,F=null;function P(){T=-1,L=0,C=0,F=null}function E(N=y,M=A,v=K){b++,J?.({startSegmentIndex:B,startGraphemeIndex:k,endSegmentIndex:N,endGraphemeIndex:M,width:v}),K=0,j=!1,P()}function H(N,M){j=!0,B=N,k=0,y=N+1,A=0,K=M}function z(N,M,v){j=!0,B=N,k=M,y=N,A=M+1,K=v}function W(N,M){if(!j){H(N,M);return}K+=M,y=N+1,A=0}function c(N,M){if(!m(Z[N]))return;let v=Z[N]==="tab"?0:X[N],w=Z[N]==="tab"?M:R[N];T=N+1,L=K-M+v,C=K-M+w,F=Z[N]}function I(N){o(N,0)}function o(N,M){let v=Q[N],w=f[N]??null;for(let G=M;G<v.length;G++){let l=t(v,w,G,q.preferPrefixWidthsForBreakableRuns);if(!j){z(N,G,l);continue}if(K+l>_+D)E(),z(N,G,l);else K+=l,y=N,A=G+1}if(j&&y===N&&A===v.length)y=N+1,A=0}function S(N){if(F!=="soft-hyphen")return!1;let M=Q[N];if(M===null)return!1;let v=q.preferPrefixWidthsForBreakableRuns?f[N]??M:M,w=v!==M,{fitCount:G,fittedWidth:l}=y0(v,K,_,D,V,w);if(G===0)return!1;if(K=l,y=N,A=G,P(),G===M.length)return y=N+1,A=0,!0;return E(N,G,l+V),o(N,G),!0}function U(N){b++,J?.({startSegmentIndex:N.startSegmentIndex,startGraphemeIndex:0,endSegmentIndex:N.consumedEndSegmentIndex,endGraphemeIndex:0,width:0}),P()}for(let N=0;N<u.length;N++){let M=u[N];if(M.startSegmentIndex===M.endSegmentIndex){U(M);continue}j=!1,K=0,B=M.startSegmentIndex,k=0,y=M.startSegmentIndex,A=0,P();let v=M.startSegmentIndex;while(v<M.endSegmentIndex){let w=Z[v],G=w==="tab"?w0(K,$):Y[v];if(w==="soft-hyphen"){if(j)y=v+1,A=0,T=v+1,L=K+V,C=K+V,F=w;v++;continue}if(!j){if(G>_&&Q[v]!==null)I(v);else H(v,G);c(v,G),v++;continue}if(K+G>_+D){let n=K+(w==="tab"?0:X[v]),e=K+(w==="tab"?G:R[v]);if(F==="soft-hyphen"&&q.preferEarlySoftHyphenBreak&&L<=_+D){E(T,0,C);continue}if(F==="soft-hyphen"&&S(v)){v++;continue}if(m(w)&&n<=_+D){W(v,G),E(v+1,0,e),v++;continue}if(T>=0&&L<=_+D){E(T,0,C);continue}if(G>_&&Q[v]!==null){E(),I(v),v++;continue}E();continue}W(v,G),c(v,G),v++}if(j){let w=T===M.consumedEndSegmentIndex?C:K;E(M.consumedEndSegmentIndex,0,w)}}return b}function S0(O,_,J){let Y=kO(O,_);if(Y===null)return null;if(O.simpleLineWalkFastPath)return oO(O,Y,J);let X=L0(O,Y.segmentIndex);if(X<0)return null;let R=O.chunks[X];if(R.startSegmentIndex===R.endSegmentIndex)return{startSegmentIndex:R.startSegmentIndex,startGraphemeIndex:0,endSegmentIndex:R.consumedEndSegmentIndex,endGraphemeIndex:0,width:0};let{widths:Z,lineEndFitAdvances:Q,lineEndPaintAdvances:f,kinds:V,breakableWidths:$,breakablePrefixWidths:u,discretionaryHyphenWidth:q,tabStopAdvance:D}=O,b=h(),K=b.lineFitEpsilon,j=0,B=!1,k=Y.segmentIndex,y=Y.graphemeIndex,A=k,T=y,L=-1,C=0,F=0,P=null;function E(){L=-1,C=0,F=0,P=null}function H(U=A,N=T,M=j){if(!B)return null;return{startSegmentIndex:k,startGraphemeIndex:y,endSegmentIndex:U,endGraphemeIndex:N,width:M}}function z(U,N){B=!0,A=U+1,T=0,j=N}function W(U,N,M){B=!0,A=U,T=N+1,j=M}function c(U,N){if(!B){z(U,N);return}j+=N,A=U+1,T=0}function I(U,N){if(!m(V[U]))return;let M=V[U]==="tab"?0:Q[U],v=V[U]==="tab"?N:f[U];L=U+1,C=j-N+M,F=j-N+v,P=V[U]}function o(U,N){let M=$[U],v=u[U]??null;for(let w=N;w<M.length;w++){let G=t(M,v,w,b.preferPrefixWidthsForBreakableRuns);if(!B){W(U,w,G);continue}if(j+G>J+K)return H();j+=G,A=U,T=w+1}if(B&&A===U&&T===M.length)A=U+1,T=0;return null}function S(U){if(P!=="soft-hyphen"||L<0)return null;let N=$[U]??null;if(N!==null){let M=b.preferPrefixWidthsForBreakableRuns?u[U]??N:N,v=M!==N,{fitCount:w,fittedWidth:G}=y0(M,j,J,K,q,v);if(w===N.length)return j=G,A=U+1,T=0,E(),null;if(w>0)return H(U,w,G+q)}if(C<=J+K)return H(L,0,F);return null}for(let U=Y.segmentIndex;U<R.endSegmentIndex;U++){let N=V[U],M=U===Y.segmentIndex?Y.graphemeIndex:0,v=N==="tab"?w0(j,D):Z[U];if(N==="soft-hyphen"&&M===0){if(B)A=U+1,T=0,L=U+1,C=j+q,F=j+q,P=N;continue}if(!B){if(M>0){let G=o(U,M);if(G!==null)return G}else if(v>J&&$[U]!==null){let G=o(U,0);if(G!==null)return G}else z(U,v);I(U,v);continue}if(j+v>J+K){let G=j+(N==="tab"?0:Q[U]),l=j+(N==="tab"?v:f[U]);if(P==="soft-hyphen"&&b.preferEarlySoftHyphenBreak&&C<=J+K)return H(L,0,F);let n=S(U);if(n!==null)return n;if(m(N)&&G<=J+K)return c(U,v),H(U+1,0,l);if(L>=0&&C<=J+K)return H(L,0,F);if(v>J&&$[U]!==null){let e=H();if(e!==null)return e;let v0=o(U,0);if(v0!==null)return v0}return H()}c(U,v),I(U,v)}if(L===R.consumedEndSegmentIndex&&T===0)return H(R.consumedEndSegmentIndex,0,F);return H(R.consumedEndSegmentIndex,0,j)}function oO(O,_,J){let{widths:Y,kinds:X,breakableWidths:R,breakablePrefixWidths:Z}=O,Q=h(),f=Q.lineFitEpsilon,V=0,$=!1,u=_.segmentIndex,q=_.graphemeIndex,D=u,b=q,K=-1,j=0;function B(C=D,F=b,P=V){if(!$)return null;return{startSegmentIndex:u,startGraphemeIndex:q,endSegmentIndex:C,endGraphemeIndex:F,width:P}}function k(C,F){$=!0,D=C+1,b=0,V=F}function y(C,F,P){$=!0,D=C,b=F+1,V=P}function A(C,F){if(!$){k(C,F);return}V+=F,D=C+1,b=0}function T(C,F){if(!m(X[C]))return;K=C+1,j=V-F}function L(C,F){let P=R[C],E=Z[C]??null;for(let H=F;H<P.length;H++){let z=t(P,E,H,Q.preferPrefixWidthsForBreakableRuns);if(!$){y(C,H,z);continue}if(V+z>J+f)return B();V+=z,D=C,b=H+1}if($&&D===C&&b===P.length)D=C+1,b=0;return null}for(let C=_.segmentIndex;C<Y.length;C++){let F=Y[C],P=X[C],E=C===_.segmentIndex?_.graphemeIndex:0;if(!$){if(E>0){let z=L(C,E);if(z!==null)return z}else if(F>J&&R[C]!==null){let z=L(C,0);if(z!==null)return z}else k(C,F);T(C,F);continue}if(V+F>J+f){if(m(P))return A(C,F),B(C+1,0,V-F);if(K>=0)return B(K,0,j);if(F>J&&R[C]!==null){let z=B();if(z!==null)return z;let W=L(C,0);if(W!==null)return W}return B()}A(C,F),T(C,F)}return B()}var R0=null,C0=new WeakMap;function I0(){if(R0===null)R0=new Intl.Segmenter(void 0,{granularity:"grapheme"});return R0}function lO(O){if(O)return{widths:[],lineEndFitAdvances:[],lineEndPaintAdvances:[],kinds:[],simpleLineWalkFastPath:!0,segLevels:null,breakableWidths:[],breakablePrefixWidths:[],discretionaryHyphenWidth:0,tabStopAdvance:0,chunks:[],segments:[]};return{widths:[],lineEndFitAdvances:[],lineEndPaintAdvances:[],kinds:[],simpleLineWalkFastPath:!0,segLevels:null,breakableWidths:[],breakablePrefixWidths:[],discretionaryHyphenWidth:0,tabStopAdvance:0,chunks:[]}}function c0(O,_,J){let Y=I0(),X=h(),{cache:R,emojiCorrection:Z}=B0(_,G0(O.normalized)),Q=g("-",x("-",R),Z),V=g(" ",x(" ",R),Z)*8;if(O.len===0)return lO(J);let $=[],u=[],q=[],D=[],b=O.chunks.length<=1,K=J?[]:null,j=[],B=[],k=J?[]:null,y=Array.from({length:O.len}),A=Array.from({length:O.len});function T(F,P,E,H,z,W,c,I){if(z!=="text"&&z!=="space"&&z!=="zero-width-break")b=!1;if($.push(P),u.push(E),q.push(H),D.push(z),K?.push(W),j.push(c),B.push(I),k!==null)k.push(F)}for(let F=0;F<O.len;F++){y[F]=$.length;let P=O.texts[F],E=O.isWordLike[F],H=O.kinds[F],z=O.starts[F];if(H==="soft-hyphen"){T(P,0,Q,Q,H,z,null,null),A[F]=$.length;continue}if(H==="hard-break"){T(P,0,0,0,H,z,null,null),A[F]=$.length;continue}if(H==="tab"){T(P,0,0,0,H,z,null,null),A[F]=$.length;continue}let W=x(P,R);if(H==="text"&&W.containsCJK){let S="",U=0;for(let N of Y.segment(P)){let M=N.segment;if(S.length===0){S=M,U=N.index;continue}if(i.has(S)||$0.has(M)||r.has(M)||X.carryCJKAfterClosingQuote&&p(M)&&D0(S)){S+=M;continue}let v=x(S,R),w=g(S,v,Z);T(S,w,w,w,"text",z+U,null,null),S=M,U=N.index}if(S.length>0){let N=x(S,R),M=g(S,N,Z);T(S,M,M,M,"text",z+U,null,null)}A[F]=$.length;continue}let c=g(P,W,Z),I=H==="space"||H==="preserved-space"||H==="zero-width-break"?0:c,o=H==="space"||H==="zero-width-break"?0:c;if(E&&P.length>1){let S=P0(P,W,R,Z),U=X.preferPrefixWidthsForBreakableRuns?A0(P,W,R,Z):null;T(P,c,I,o,H,z,S,U)}else T(P,c,I,o,H,z,null,null);A[F]=$.length}let L=hO(O.chunks,y,A),C=K===null?null:u0(O.normalized,K);if(k!==null)return{widths:$,lineEndFitAdvances:u,lineEndPaintAdvances:q,kinds:D,simpleLineWalkFastPath:b,segLevels:C,breakableWidths:j,breakablePrefixWidths:B,discretionaryHyphenWidth:Q,tabStopAdvance:V,chunks:L,segments:k};return{widths:$,lineEndFitAdvances:u,lineEndPaintAdvances:q,kinds:D,simpleLineWalkFastPath:b,segLevels:C,breakableWidths:j,breakablePrefixWidths:B,discretionaryHyphenWidth:Q,tabStopAdvance:V,chunks:L}}function hO(O,_,J){let Y=[];for(let X=0;X<O.length;X++){let R=O[X],Z=R.startSegmentIndex<_.length?_[R.startSegmentIndex]:J[J.length-1]??0,Q=R.endSegmentIndex<_.length?_[R.endSegmentIndex]:J[J.length-1]??0,f=R.consumedEndSegmentIndex<_.length?_[R.consumedEndSegmentIndex]:J[J.length-1]??0;Y.push({startSegmentIndex:Z,endSegmentIndex:Q,consumedEndSegmentIndex:f})}return Y}function o0(O,_,J,Y){let X=N0(O,h(),Y?.whiteSpace);return c0(X,_,J)}function V1(O,_,J){let Y=performance.now(),X=N0(O,h(),J?.whiteSpace),R=performance.now(),Z=c0(X,_,!1),Q=performance.now(),f=0;for(let V of Z.breakableWidths)if(V!==null)f++;return{analysisMs:R-Y,measureMs:Q-R,totalMs:Q-Y,analysisSegments:X.len,preparedSegments:Z.widths.length,breakableSegments:f}}function X1(O,_,J){return o0(O,_,!1,J)}function Y1(O,_,J){return o0(O,_,!0,J)}function F0(O){return O}function Z1(O,_,J){let Y=W0(F0(O),_);return{lineCount:Y,height:Y*J}}function k0(O,_,J){let Y=J.get(O);if(Y!==void 0)return Y;Y=[];let X=I0();for(let R of X.segment(_[O]))Y.push(R.segment);return J.set(O,Y),Y}function l0(O){let _=C0.get(O);if(_!==void 0)return _;return _=new Map,C0.set(O,_),_}function pO(O,_,J,Y){return Y>0&&O[Y-1]==="soft-hyphen"&&!(_===Y&&J>0)}function xO(O,_,J,Y,X,R,Z){let Q="",f=pO(_,Y,X,R);for(let V=Y;V<R;V++){if(_[V]==="soft-hyphen"||_[V]==="hard-break")continue;if(V===Y&&X>0)Q+=k0(V,O,J).slice(X).join("");else Q+=O[V]}if(Z>0){if(f)Q+="-";Q+=k0(R,O,J).slice(Y===R?X:0,Z).join("")}else if(f)Q+="-";return Q}function h0(O,_,J,Y,X,R,Z){return{text:xO(O.segments,O.kinds,_,Y,X,R,Z),width:J,start:{segmentIndex:Y,graphemeIndex:X},end:{segmentIndex:R,graphemeIndex:Z}}}function gO(O,_,J){return h0(O,_,J.width,J.startSegmentIndex,J.startGraphemeIndex,J.endSegmentIndex,J.endGraphemeIndex)}function p0(O){return{width:O.width,start:{segmentIndex:O.startSegmentIndex,graphemeIndex:O.startGraphemeIndex},end:{segmentIndex:O.endSegmentIndex,graphemeIndex:O.endGraphemeIndex}}}function mO(O,_,J){let Y=S0(O,_,J);if(Y===null)return null;return p0(Y)}function rO(O,_){return h0(O,l0(O),_.width,_.start.segmentIndex,_.start.graphemeIndex,_.end.segmentIndex,_.end.graphemeIndex)}function $1(O,_,J){if(O.widths.length===0)return 0;return J0(F0(O),_,(Y)=>{J(p0(Y))})}function Q1(O,_,J){let Y=mO(O,_,J);if(Y===null)return null;return rO(O,Y)}function q1(O,_,J){let Y=[];if(O.widths.length===0)return{lineCount:0,height:0,lines:Y};let X=l0(O),R=J0(F0(O),_,(Z)=>{Y.push(gO(O,X,Z))});return{lineCount:R,height:R*J,lines:Y}}function aO(){z0(),R0=null,C0=new WeakMap,T0()}function D1(O){j0(O),aO()}// Local aliases — X1=prepare, Z1=layout (minified names from pretext vendor)
+const prepare = X1;
+const layout = Z1;
+
+
+// ── PRETEXT WIRING ────────────────────────────────────────────────────────
+// Pattern 1: Basic height computation for variable-length text elements.
+// Prevents text overflow / layout collapse on resize.
+
+const prepared = new Map();
+
+async function initPretext() {
+  if (typeof prepare !== 'function' || typeof layout !== 'function') return;
+  await document.fonts.ready;
+
+  const elements = document.querySelectorAll('[data-pretext]');
+  for (const el of elements) {
+    const text = el.textContent.trim();
+    const font = getComputedStyle(el).font;
+    if (text) {
+      prepared.set(el, prepare(text, font));
+    }
+  }
+
+  relayout();
+}
+
+function relayout() {
+  for (const [el, handle] of prepared) {
+    const width = el.clientWidth;
+    if (width <= 0) continue;
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+    try {
+      const { height } = layout(handle, width, lineHeight);
+      el.style.height = `${Math.ceil(height)}px`;
+    } catch (_) {
+      // Graceful degradation: let the element size naturally
+      el.style.height = '';
+    }
+  }
+}
+
+// Re-layout on window resize (debounced at 16ms / ~60fps)
+let rafId;
+new ResizeObserver(() => {
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(relayout);
+}).observe(document.body);
+
+// contenteditable: re-prepare on edit (for live editing use case)
+function watchEditable(el) {
+  if (el.contentEditable !== 'true') return;
+  new MutationObserver(() => {
+    const text = el.textContent.trim();
+    const font = getComputedStyle(el).font;
+    if (text) prepared.set(el, prepare(text, font));
+    relayout();
+  }).observe(el, { characterData: true, subtree: true, childList: true });
+}
+
+initPretext().then(() => {
+  document.querySelectorAll('[data-pretext]').forEach(watchEditable);
+});
+
+// ── THEME TOGGLE ──────────────────────────────────────────────────────────
+function applyTheme(dark) {
+  document.documentElement.dataset.theme = dark ? 'dark' : '';
+  const icon = dark ? '☀️' : '🌙';
+  document.getElementById('theme-toggle').textContent = icon;
+  document.getElementById('theme-btn-float').textContent = icon;
+  try { localStorage.setItem('cancrm-theme', dark ? 'dark' : 'light'); } catch (_) {}
+  // Re-prepare after theme change (colors/fonts unchanged, but just in case)
+  setTimeout(relayout, 50);
+}
+
+const savedTheme = (() => { try { return localStorage.getItem('cancrm-theme'); } catch (_) { return null; } })();
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+applyTheme(savedTheme === 'dark' || (!savedTheme && prefersDark));
+
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  applyTheme(document.documentElement.dataset.theme !== 'dark');
+});
+document.getElementById('theme-btn-float').addEventListener('click', () => {
+  applyTheme(document.documentElement.dataset.theme !== 'dark');
+});
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  if (!localStorage.getItem('cancrm-theme')) applyTheme(e.matches);
+});
+// ── NAV ROUTER ────────────────────────────────────────────────────────────
+function navigate(viewId) {
+  // Hide all panels
+  document.querySelectorAll('.view-panel').forEach(p => p.hidden = true);
+  // Show target
+  const target = document.getElementById('view-' + viewId);
+  if (target) target.hidden = false;
+  // Update active nav item
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.remove('active');
+    item.removeAttribute('aria-current');
+  });
+  const activeLink = document.querySelector('[data-view="' + viewId + '"]');
+  if (activeLink) {
+    activeLink.classList.add('active');
+    activeLink.setAttribute('aria-current', 'page');
+  }
+  // Scroll content to top
+  const content = document.querySelector('.content');
+  if (content) content.scrollTop = 0;
+}
+
+// Wire all nav items
+document.querySelectorAll('[data-view]').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    navigate(link.dataset.view);
+  });
+});
+
+// Payout calculator logic
+const payoutRates = {
+  home:     { hdfc:0.0050, sbi:0.0040, axis:0.0045, icici:0.0048, kotak:0.0042, bajaj:null },
+  lap:      { hdfc:0.0065, sbi:0.0055, axis:0.0060, icici:0.0062, kotak:0.0058, bajaj:0.0070 },
+  personal: { hdfc:0.0120, sbi:0.0100, axis:0.0110, icici:0.0115, kotak:0.0105, bajaj:0.0130 },
+  business: { hdfc:0.0100, sbi:0.0085, axis:0.0095, icici:0.0098, kotak:0.0090, bajaj:0.0110 },
+};
+const bankLabels = { hdfc:'HDFC Bank', sbi:'SBI', axis:'Axis Bank', icici:'ICICI Bank', kotak:'Kotak', bajaj:'Bajaj Finserv' };
+
+function calcPayout() {
+  const amount = parseFloat(document.getElementById('pay-amount')?.value) || 0;
+  const type   = document.getElementById('pay-type')?.value || 'home';
+  const results = document.getElementById('payout-results');
+  if (!results) return;
+  if (!amount) { results.innerHTML = '<div style="font-size:13px;color:var(--text-muted)">Enter a loan amount to see payouts</div>'; return; }
+  const rates = payoutRates[type];
+  const sorted = Object.entries(rates)
+    .filter(([,r]) => r !== null)
+    .map(([bank, rate]) => ({ bank, rate, payout: amount * rate }))
+    .sort((a,b) => b.payout - a.payout);
+  results.innerHTML = sorted.map((item, i) =>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:${i===0?'var(--primary-muted)':'var(--surface-2)'};border-radius:var(--radius-md);border:1px solid ${i===0?'var(--primary)':'var(--border)'}">
+      <div style="font-size:13px;font-weight:${i===0?'700':'500'};color:${i===0?'var(--primary)':'var(--text-primary)'}">${bankLabels[item.bank]}${i===0?' 🏆':''}</div>
+      <div style="text-align:right">
+        <div style="font-size:14px;font-weight:700;color:${i===0?'var(--primary)':'var(--text-primary)'}">₹${Math.round(item.payout).toLocaleString('en-IN')}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${(item.rate*100).toFixed(2)}%</div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+// Eligibility engine demo
+function showEligibilityResults() {
+  const results = document.getElementById('eligibility-results');
+  if (!results) return;
+  results.innerHTML = `
+    <div style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:var(--sp-4)">Recommended Banks</div>
+    <div style="background:var(--success-bg);border:1px solid var(--success);border-radius:var(--radius-md);padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <strong style="font-size:13px;color:var(--success)">HDFC Bank</strong>
+        <span style="background:var(--success);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">Match 94%</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary)">Home Loan · Up to ₹75L · Rate from 8.75%</div>
+    </div>
+    <div style="background:var(--primary-muted);border:1px solid var(--primary);border-radius:var(--radius-md);padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <strong style="font-size:13px;color:var(--primary)">Axis Bank</strong>
+        <span style="background:var(--primary);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">Match 87%</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary)">Home Loan · Up to ₹60L · Rate from 8.90%</div>
+    </div>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <strong style="font-size:13px">ICICI Bank</strong>
+        <span style="background:var(--surface);border:1px solid var(--border);color:var(--text-muted);font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">Match 72%</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted)">Home Loan · Up to ₹50L · Rate from 9.10%</div>
+    </div>
+    <div style="margin-top:var(--sp-4);padding:10px;background:var(--warning-bg);border:1px solid var(--warning);border-radius:var(--radius-md);font-size:12px;color:var(--warning)">
+      ⚠ Submit to HDFC and Axis only — submitting all 3 will trigger 3 CIBIL enquiries
+    </div>`;
+}
+
+</script>
+
+
+<div class="ov-m" id="m-borrow">
+  <div class="ov-box lg"><div class="ov-hd"><h3 id="m-b-title">Add Borrower</h3><button class="ov-close" onclick="closeOv('m-borrow')">&#x2715;</button></div>
+    <div class="ov-bd"><div class="f2">
+      <div class="fg full"><label>Customer Name *</label><input class="fc" id="b-name" placeholder="Ramesh Kumar"></div>
+      <div class="fg"><label>Mobile Number *</label><input class="fc" id="b-phone" placeholder="98xx xxxxxxx" type="tel"></div>
+      <div class="fg"><label>Select the Product *</label><select class="fc" id="b-ltype">
+        <option value="">Select...</option>
+        <option value="Business Loan">Business Loan (BL)</option>
+        <option value="Personal Loan">Personal Loan (PL)</option>
+        <option value="Home Loan">Home Loan (HL)</option>
+        <option value="LAP">Loan Against Property (LAP)</option>
+        <option value="Car Loan">Car Loan</option>
+        <option value="Insurance">Insurance</option>
+        <option value="Education Loan">Education Loan</option>
+      </select></div>
+      <div class="fg"><label>Loan Amount</label><input class="fc" id="b-amount" placeholder="45,00,000"></div>
+      <div class="fg"><label>Location</label><input class="fc" id="b-location" placeholder="City, State"></div>
+      <div class="fg"><label>Profile Type</label><select class="fc" id="b-profile">
+        <option value="">Select...</option>
+        <option>Salaried</option><option>Self Employed</option>
+        <option>Professional</option><option>Business</option>
+      </select></div>
+      <div class="fg"><label>Email ID</label><input class="fc" id="b-email" placeholder="name@domain.com" type="email"></div>
+      <div class="fg"><label>Monthly / Annual Income</label><input class="fc" id="b-income" placeholder="e.g. 85,000 /month"></div>
+      <div class="fg"><label>Bank / NBFC</label><input class="fc" id="b-bank" placeholder="HDFC Bank"></div>
+      <div class="fg"><label>CIBIL Score</label><input class="fc" id="b-cibil" placeholder="740" type="number"></div>
+      <div class="fg"><label>Status *</label><select class="fc" id="b-status">
+        <option value="lead">Lead</option>
+        <option value="followup">Follow-up</option>
+        <option value="applied">Applied</option>
+        <option value="approved">Approved</option>
+        <option value="disbursed">Disbursed</option>
+      </select></div>
+      <div class="fg"><label>Date &amp; Time</label><input class="fc" id="b-datetime" type="datetime-local"></div>
+      <div class="fg"><label>EMI Date</label><input class="fc" id="b-emi" type="date"></div>
+      <div class="fg full"><label>Notes / Remarks</label><textarea class="fc" id="b-notes" rows="3" style="resize:vertical;min-height:70px;" placeholder="Any follow-up context, conversation notes..."></textarea></div>
+    </div><div class="ov-acts"><button class="ov-cancel" onclick="closeOv('m-borrow')">Cancel</button><button class="ov-save" onclick="saveBorrower()">Save the Lead</button></div>
+    </div></div></div>
+
+<div class="ov-m" id="m-follow">
+  <div class="ov-box md"><div class="ov-hd"><h3>Schedule Follow-up</h3><button class="ov-close" onclick="closeOv('m-follow')">&#x2715;</button></div>
+    <div class="ov-bd"><div class="f2">
+      <div class="fg full"><label>Customer Name *</label><input class="fc" id="f-name" placeholder="Ramesh Kumar"></div>
+      <div class="fg"><label>Mobile Number</label><input class="fc" id="f-phone" type="tel" placeholder="98xx xxxxxxx"></div>
+      <div class="fg"><label>Loan Type</label><select class="fc" id="f-ltype">
+        <option>Personal Loan</option><option>Business Loan</option>
+        <option>Home Loan</option><option>LAP</option>
+        <option>Car Loan</option><option>Education Loan</option>
+        <option>Insurance</option>
+      </select></div>
+      <div class="fg"><label>Follow-up Date &amp; Time *</label><input class="fc" id="f-datetime" type="datetime-local"></div>
+      <div class="fg full"><label>Purpose *</label><select class="fc" id="f-purpose">
+        <option>Initial Call</option>
+        <option>Document Collection</option>
+        <option>Verification Follow-up</option>
+        <option>Bank Query Response</option>
+        <option>Disbursement Confirmation</option>
+        <option>Re-verification</option>
+        <option>Others</option>
+      </select></div>
+      <div class="fg full"><label>Notes</label><textarea class="fc" id="f-notes" rows="2" style="resize:vertical;min-height:55px;" placeholder="Optional"></textarea></div>
+    </div><div class="ov-acts"><button class="ov-cancel" onclick="closeOv('m-follow')">Cancel</button><button class="ov-save" onclick="saveFollowup()">Schedule</button></div>
+    </div></div></div>
+
+<div class="ov-m" id="m-dump">
+  <div class="ov-box lg"><div class="ov-hd"><h3 id="m-dump-title">Add Business Loan Profile</h3><button class="ov-close" onclick="closeOv('m-dump')">&#x2715;</button></div>
+    <div class="ov-bd"><div class="f2">
+      <div class="fg"><label>Customer Name *</label><input class="fc" id="d-name" placeholder="Ramesh Kumar"></div>
+      <div class="fg"><label>Age</label><input class="fc" id="d-age" type="number" placeholder="38"></div>
+      <div class="fg"><label>Gender</label><select class="fc" id="d-gender"><option>Male</option><option>Female</option><option>Other</option></select></div>
+      <div class="fg"><label>Co-Applicant Available</label><select class="fc" id="d-coapp"><option>No</option><option>Yes</option></select></div>
+      <div class="fg"><label>Business Name</label><input class="fc" id="d-bname" placeholder="ABC Traders"></div>
+      <div class="fg"><label>Business Vintage</label><input class="fc" id="d-vint" placeholder="e.g. 6 years"></div>
+      <div class="fg"><label>Business Type</label><input class="fc" id="d-btype" placeholder="Proprietorship / Pvt Ltd..."></div>
+      <div class="fg"><label>Turnover — Banking (₹ Lakhs)</label><input class="fc" id="d-tbank" type="number" placeholder="0"></div>
+      <div class="fg"><label>GST Available</label><select class="fc" id="d-gst" onchange="document.getElementById('d-tgst-wrap').style.display=this.value==='Yes'?'':'none'"><option>No</option><option>Yes</option></select></div>
+      <div class="fg" id="d-tgst-wrap" style="display:none"><label>Turnover — GST (₹ Lakhs)</label><input class="fc" id="d-tgst" type="number"></div>
+      <div class="fg"><label>ITR Available</label><select class="fc" id="d-itr" onchange="document.getElementById('d-titr-wrap').style.display=this.value==='Yes'?'':'none'"><option>No</option><option>Yes</option></select></div>
+      <div class="fg" id="d-titr-wrap" style="display:none"><label>Turnover — ITR (₹ Lakhs)</label><input class="fc" id="d-titr" type="number"></div>
+      <div class="fg"><label># Active Loans</label><input class="fc" id="d-nloans" type="number" placeholder="0"></div>
+      <div class="fg"><label>Loan Amount — Active</label><input class="fc" id="d-aamt" placeholder="in lakhs"></div>
+      <div class="fg"><label># Unsecured Loans</label><input class="fc" id="d-unsec" type="number" placeholder="0"></div>
+      <div class="fg"><label>EMI Amount</label><input class="fc" id="d-emi" placeholder="monthly"></div>
+      <div class="fg"><label>Bounces — last 6 mo</label><input class="fc" id="d-b6" type="number" placeholder="0"></div>
+      <div class="fg"><label>Bounces — last 3 mo</label><input class="fc" id="d-b3" type="number" placeholder="0"></div>
+      <div class="fg"><label>Enquiries — last 6 mo</label><input class="fc" id="d-e6" type="number" placeholder="0"></div>
+      <div class="fg"><label>Enquiries — last 3 mo</label><input class="fc" id="d-e3" type="number" placeholder="0"></div>
+      <div class="fg"><label>ABB</label><input class="fc" id="d-abb" placeholder="Avg Bank Balance"></div>
+      <div class="fg"><label>Own House</label><select class="fc" id="d-own"><option>No</option><option>Yes</option></select></div>
+      <div class="fg full"><label>Loan Requirement</label><input class="fc" id="d-req" placeholder="₹ amount + purpose"></div>
+      <div class="fg full"><label>Connector / DSA / Customer Contact Details</label><input class="fc" id="d-con" placeholder="Name | Phone | Relation"></div>
+      <div style="grid-column:1/-1;border-top:1px dashed var(--border);padding-top:14px;margin-top:6px;">
+        <div style="font-family:Syne,sans-serif;font-weight:700;font-size:13px;color:var(--gold);margin-bottom:6px;">Review by Credit Team</div>
+      </div>
+      <div class="fg"><label>Banker Name</label><input class="fc" id="d-rb"></div>
+      <div class="fg"><label>Bank Name</label><input class="fc" id="d-rbk"></div>
+      <div class="fg"><label>Doable / Not</label><select class="fc" id="d-rdo"><option value="">—</option><option>Doable</option><option>Not Doable</option><option>Conditional</option></select></div>
+      <div class="fg full"><label>Remarks</label><textarea class="fc" id="d-rem" rows="2" style="resize:vertical;min-height:55px;"></textarea></div>
+    </div><div class="ov-acts"><button class="ov-cancel" onclick="closeOv('m-dump')">Cancel</button><button class="ov-save" onclick="saveDumpItem()">Save Profile</button></div>
+    </div></div></div>
+
+<div class="ov-m" id="m-contact">
+  <div class="ov-box md"><div class="ov-hd"><h3 id="m-c-title">Add Contact</h3><button class="ov-close" onclick="closeOv('m-contact')">&#x2715;</button></div>
+    <div class="ov-bd"><div class="f2">
+      <div class="fg full"><label>Full Name *</label><input class="fc" id="c-name" placeholder="Rajiv Sharma"></div>
+      <div class="fg"><label>Bank / NBFC *</label><input class="fc" id="c-bank" placeholder="HDFC Bank"></div>
+      <div class="fg"><label>Designation</label><input class="fc" id="c-desig" placeholder="Branch Manager / RM / Credit Head"></div>
+      <div class="fg"><label>Role / Team</label><input class="fc" id="c-role" placeholder="RM - Home Loans"></div>
+      <div class="fg"><label>Location *</label><input class="fc" id="c-loc" placeholder="Vizag, Vijayawada"></div>
+      <div class="fg"><label>Phone *</label><input class="fc" id="c-phone" placeholder="98xx xxxxxxx" type="tel"></div>
+      <div class="fg"><label>Email</label><input class="fc" id="c-email" placeholder="name@bank.com" type="email"></div>
+      <div class="fg full"><label>Product Specialty</label><input class="fc" id="c-prod" placeholder="Home Loan, LAP"></div>
+    </div><div class="ov-acts"><button class="ov-cancel" onclick="closeOv('m-contact')">Cancel</button><button class="ov-save" onclick="saveContact()">Save</button></div>
+    </div></div></div>
+
+<div class="ov-m" id="m-xl-prev">
+  <div class="ov-box lg"><div class="ov-hd"><h3>Excel Import Preview</h3><button class="ov-close" onclick="closeOv('m-xl-prev')">&#x2715;</button></div>
+    <div class="ov-bd"><p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Found <strong id="xl-cnt" style="color:var(--gold);">0</strong> contacts.</p>
+      <div id="xl-prev-tbl" style="max-height:300px;overflow-y:auto;overflow-x:auto;"></div>
+      <div class="ov-acts"><button class="ov-cancel" onclick="closeOv('m-xl-prev')">Cancel</button><button class="ov-save" onclick="confirmXL()">Import All</button></div>
+    </div></div></div>
+
+<div class="ov-m" id="m-paste-pol">
+  <div class="ov-box lg"><div class="ov-hd"><h3 id="m-pp-title">Paste Bank Policy</h3><button class="ov-close" onclick="closeOv('m-paste-pol')">&#x2715;</button></div>
+    <div class="ov-bd"><p style="font-size:13px;color:var(--muted);margin-bottom:8px;">Paste any WhatsApp bank policy. Fields auto-extracted.</p>
+      <textarea class="ov-paste" id="pol-paste-txt" rows="7" placeholder="Paste full bank policy here..."></textarea>
+      <button class="ov-save" style="width:100%;margin-top:10px;" onclick="parsePastePol()">Parse and Save</button>
+    </div></div></div>
+
+<div class="ov-m" id="m-add-pol">
+  <div class="ov-box lg"><div class="ov-hd"><h3 id="m-ap-title">Add Policy</h3><button class="ov-close" onclick="closeOv('m-add-pol')">&#x2715;</button></div>
+    <div class="ov-bd"><div class="f2">
+      <div class="fg full"><label>Bank Name *</label><input class="fc" id="p-bank" placeholder="HDFC Bank"></div>
+      <div class="fg"><label>ROI</label><input class="fc" id="p-roi" placeholder="8.50 to 9.25%"></div>
+      <div class="fg"><label>Loan Amount</label><input class="fc" id="p-amt" placeholder="20L to 5Cr"></div>
+      <div class="fg"><label>Min CIBIL</label><input class="fc" id="p-cibil" placeholder="700+"></div>
+      <div class="fg"><label>TAT</label><input class="fc" id="p-tat" placeholder="5-7 Days"></div>
+      <div class="fg"><label>DSA Payout</label><input class="fc" id="p-pay" placeholder="Upto 1.5%"></div>
+      <div class="fg full"><label>Location</label><input class="fc" id="p-loc" placeholder="Vizag, Vijayawada"></div>
+      <div class="fg full"><label>Key Highlights (one per line)</label><textarea class="fc" id="p-hl" rows="4" style="min-height:80px;resize:vertical;" placeholder="No ITR upto 50L"></textarea></div>
+      <div class="fg full"><label>Contact</label><input class="fc" id="p-con" placeholder="Name | Phone | Email"></div>
+    </div><div class="ov-acts"><button class="ov-cancel" onclick="closeOv('m-add-pol')">Cancel</button><button class="ov-save" onclick="savePolItem()">Save Policy</button></div>
+    </div></div></div>
+
+<!-- Pretext vendor -->
+
+
+<!-- Nav router -->
+<script>
+// ── NAV ROUTER ────────────────────────────────────────────────────────────
+function navigate(viewId) {
+  // Hide all panels
+  document.querySelectorAll('.view-panel').forEach(p => p.hidden = true);
+  // Show target
+  const target = document.getElementById('view-' + viewId);
+  if (target) target.hidden = false;
+  // Update active nav item
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.remove('active');
+    item.removeAttribute('aria-current');
+  });
+  const activeLink = document.querySelector('[data-view="' + viewId + '"]');
+  if (activeLink) {
+    activeLink.classList.add('active');
+    activeLink.setAttribute('aria-current', 'page');
+  }
+  // Scroll content to top
+  const content = document.querySelector('.content');
+  if (content) content.scrollTop = 0;
+}
+
+// Wire all nav items
+document.querySelectorAll('[data-view]').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    navigate(link.dataset.view);
+  });
+});
+
+// Payout calculator logic
+
+
+// Eligibility engine demo
+</script>
+
+<!-- CAN-CRM Features -->
+<script>
+// CAN-CRM Feature JS
+function openOv(id){document.getElementById(id).classList.add('open');}
+function closeOv(id){document.getElementById(id).classList.remove('open');}
+document.addEventListener('click',function(e){document.querySelectorAll('.ov-m.open').forEach(function(m){if(e.target===m)m.classList.remove('open');});});
+function rupee(n){if(!n||isNaN(n))return '₹0';return '₹'+Number(n).toLocaleString('en-IN',{maximumFractionDigits:2});}
+function crmT(msg,t){var el=document.getElementById('TOAST');if(!el)return;el.textContent=msg;el.className='toast '+(t||'ok');clearTimeout(window._ct);setTimeout(function(){el.classList.add('show');},10);window._ct=setTimeout(function(){el.classList.remove('show');},3200);}
+
+var BROWS=(function(){try{var d=JSON.parse(localStorage.getItem('crm-brow')||'[]');if(d.length)return d;}catch(e){}
+  return [{id:1,name:'Demo A',phone:'98xx',loanType:'Home Loan',amount:'28,00,000',bank:'SBI',cibil:'712',emi:'2026-05-03',status:'overdue'},
+    {id:2,name:'Demo B',phone:'97xx',loanType:'Home Loan',amount:'45,00,000',bank:'HDFC Bank',cibil:'768',emi:'2026-04-22',status:'applied'},
+    {id:3,name:'Demo C',phone:'96xx',loanType:'LAP',amount:'18,50,000',bank:'Axis Bank',cibil:'741',emi:'2026-04-24',status:'disbursed'},
+    {id:4,name:'Demo D',phone:'95xx',loanType:'Home Loan',amount:'62,00,000',bank:'ICICI Bank',cibil:'689',emi:'2026-04-28',status:'applied'},
+    {id:5,name:'Demo E',phone:'94xx',loanType:'Home Loan',amount:'55,00,000',bank:'SBI',cibil:'755',emi:'2026-05-12',status:'approved'},
+    {id:6,name:'Demo F',phone:'93xx',loanType:'LAP',amount:'30,00,000',bank:'ICICI Bank',cibil:'729',emi:'2026-05-12',status:'applied'},
+    {id:7,name:'Demo G',phone:'92xx',loanType:'Personal Loan',amount:'8,00,000',bank:'Bajaj Finserv',cibil:'762',emi:'2026-04-28',status:'disbursed'},
+    {id:8,name:'Demo H',phone:'91xx',loanType:'Home Loan',amount:'72,00,000',bank:'HDFC Bank',cibil:'698',emi:'2026-04-18',status:'applied'},
+    {id:9,name:'Demo I',phone:'90xx',loanType:'Business Loan',amount:'15,00,000',bank:'Kotak Mahindra',cibil:'',emi:'',status:'lead'},
+    {id:10,name:'Demo J',phone:'89xx',loanType:'Home Loan',amount:'85,00,000',bank:'SBI',cibil:'778',emi:'2026-05-03',status:'approved'}];
+})();
+var _eBid=null;
+function saveBROWS(){try{localStorage.setItem('crm-brow',JSON.stringify(BROWS));}catch(e){}}
+var SBL={lead:'<span class="sbl sbl-lead">Lead</span>',applied:'<span class="sbl sbl-applied">Applied</span>',approved:'<span class="sbl sbl-approved">Approved</span>',disbursed:'<span class="sbl sbl-disbursed">Disbursed</span>',overdue:'<span class="sbl sbl-overdue">Overdue</span>'};
+function renderBorrows(list){
+  var tb=document.getElementById('borrow-tbody'),lb=document.getElementById('borrow-lbl');
+  if(!tb)return; if(lb)lb.textContent=list.length+' borrower'+(list.length!==1?'s':'');
+  if(!list.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:28px;color:var(--muted);">No results</td></tr>';return;}
+  tb.innerHTML=list.map(function(b,i){
+    var cc=parseInt(b.cibil)>=700?'var(--green)':parseInt(b.cibil)<700&&b.cibil?'var(--red)':'var(--muted)';
+    return '<tr><td style="color:var(--muted);font-size:11px;">'+(i+1)+'</td>'
+      +'<td class="td-name">'+b.name+'</td><td class="td-secondary">'+(b.phone||'&#8212;')+'</td>'
+      +'<td class="td-secondary">'+(b.loanType||'&#8212;')+'</td>'
+      +'<td class="td-amount">&#x20b9;'+(b.amount||'&#8212;')+'</td>'
+      +'<td class="td-secondary">'+(b.bank||'&#8212;')+'</td>'
+      +'<td style="color:'+cc+'">'+(b.cibil||'&#8212;')+'</td>'
+      +'<td>'+(b.emi||'&#8212;')+'</td>'
+      +'<td>'+(SBL[b.status]||b.status)+'</td>'
+      +'<td><button style="background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.25);border-radius:4px;padding:4px 8px;color:var(--gold);cursor:pointer;font-size:11px;margin-right:4px;" onclick="editBorrow('+b.id+')">Edit</button>'
+        +'<button style="background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.25);border-radius:4px;padding:4px 8px;color:var(--red);cursor:pointer;font-size:11px;" onclick="delBorrow('+b.id+')">Del</button>'
+      +'</td></tr>';
+  }).join('');
+}
+function filterBorrowers(){
+  var q=(document.getElementById('borrow-q').value||'').toLowerCase();
+  var st=document.getElementById('borrow-st').value;
+  renderBorrows(BROWS.filter(function(b){return(!q||[b.name,b.phone,b.loanType,b.bank,b.cibil].join(' ').toLowerCase().indexOf(q)>=0)&&(!st||b.status===st);}));
+  renderActiveFiles();
+}
+function renderActiveFiles(){
+  var tb=document.getElementById('afiles-tbody'); if(!tb)return;
+  var selEl=document.getElementById('afiles-st');
+  var sel=selEl?selEl.value:'';
+  // Active = lead / applied / approved / disbursed (exclude overdue-only)
+  var ACTIVE_SET={lead:1,applied:1,approved:1,disbursed:1};
+  var list=BROWS.filter(function(b){
+    if(sel) return b.status===sel;
+    return ACTIVE_SET[b.status];
+  });
+  var lb=document.getElementById('afiles-lbl');
+  if(lb) lb.textContent=list.length+' file'+(list.length!==1?'s':'')+' in progress';
+  if(!list.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);">No active files</td></tr>';return;}
+  var BADGE={lead:['badge-lead','var(--text-muted)','Lead'],applied:['badge-applied','var(--info)','Applied'],approved:['badge-approved','var(--success)','Approved'],disbursed:['badge-approved','var(--success)','Disbursed'],overdue:['badge-followup','var(--warning)','Overdue']};
+  tb.innerHTML=list.map(function(b){
+    var cc=parseInt(b.cibil)>=700?'var(--success)':parseInt(b.cibil)<700&&b.cibil?'var(--danger, var(--red))':'var(--text-muted)';
+    var bd=BADGE[b.status]||BADGE.lead;
+    return '<tr>'
+      +'<td class="td-name">'+b.name+'</td>'
+      +'<td class="td-secondary">'+(b.loanType||'—')+'</td>'
+      +'<td class="td-amount">₹'+(b.amount||'—')+'</td>'
+      +'<td class="td-secondary">'+(b.bank||'—')+'</td>'
+      +'<td style="color:'+cc+'">'+(b.cibil||'—')+'</td>'
+      +'<td class="td-muted">'+(b.emi||'—')+'</td>'
+      +'<td><span class="badge '+bd[0]+'"><span class="badge-dot" style="background:'+bd[1]+'"></span>'+bd[2]+'</span></td>'
+      +'<td><button style="background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.25);border-radius:4px;padding:4px 8px;color:var(--gold);cursor:pointer;font-size:11px;" onclick="editBorrow('+b.id+')">Edit</button></td>'
+      +'</tr>';
+  }).join('');
+}
+var BFIELDS=['b-name','b-phone','b-cibil','b-amount','b-bank','b-location','b-email','b-income','b-notes'];
+function openBorrowerModal(){
+  _eBid=null; document.getElementById('m-b-title').textContent='Add Borrower';
+  BFIELDS.forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('b-ltype').value=''; document.getElementById('b-profile').value='';
+  document.getElementById('b-status').value='lead'; document.getElementById('b-emi').value='';
+  document.getElementById('b-datetime').value='';
+  openOv('m-borrow');
+}
+function editBorrow(id){
+  var b=BROWS.filter(function(x){return x.id===id;})[0]; if(!b)return; _eBid=id;
+  document.getElementById('m-b-title').textContent='Edit Borrower';
+  document.getElementById('b-name').value=b.name||''; document.getElementById('b-phone').value=b.phone||'';
+  document.getElementById('b-cibil').value=b.cibil||''; document.getElementById('b-amount').value=b.amount||'';
+  document.getElementById('b-bank').value=b.bank||''; document.getElementById('b-ltype').value=b.loanType||'';
+  document.getElementById('b-status').value=b.status||'lead'; document.getElementById('b-emi').value=b.emi||'';
+  document.getElementById('b-location').value=b.location||''; document.getElementById('b-email').value=b.email||'';
+  document.getElementById('b-income').value=b.income||''; document.getElementById('b-notes').value=b.notes||'';
+  document.getElementById('b-profile').value=b.profile||''; document.getElementById('b-datetime').value=b.datetime||'';
+  openOv('m-borrow');
+}
+function saveBorrower(){
+  var n=document.getElementById('b-name').value.trim();
+  var ph=document.getElementById('b-phone').value.trim();
+  var lt=document.getElementById('b-ltype').value;
+  var st=document.getElementById('b-status').value;
+  if(!n||!ph||!lt||!st){crmT('Name, Mobile, Product, Status required','err');return;}
+  var o={id:_eBid||Date.now(),name:n,phone:ph,
+    cibil:document.getElementById('b-cibil').value.trim(),loanType:lt,
+    amount:document.getElementById('b-amount').value.trim(),bank:document.getElementById('b-bank').value.trim(),
+    emi:document.getElementById('b-emi').value,status:st,
+    location:document.getElementById('b-location').value.trim(),
+    email:document.getElementById('b-email').value.trim(),
+    income:document.getElementById('b-income').value.trim(),
+    profile:document.getElementById('b-profile').value,
+    datetime:document.getElementById('b-datetime').value,
+    notes:document.getElementById('b-notes').value.trim()};
+  if(_eBid){var i=BROWS.findIndex(function(x){return x.id===_eBid;});if(i>-1)BROWS[i]=o;crmT('Lead updated!','ok');}
+  else{BROWS.push(o);crmT('Lead saved!','ok');}
+  saveBROWS(); closeOv('m-borrow'); filterBorrowers();
+}
+
+/* ── FOLLOW-UPS QUEUE ─────────────────────────────────────────── */
+var FUPS=(function(){try{var d=JSON.parse(localStorage.getItem('crm-fups')||'[]');if(d.length)return d;}catch(e){}
+  return [
+    {id:1,name:'Demo Borrower A',phone:'98xxxxxxxx',ltype:'Home Loan',purpose:'Re-verification',dt:'2026-04-21T10:00',notes:'EMI overdue 3 days'},
+    {id:2,name:'Demo Borrower B',phone:'97xxxxxxxx',ltype:'Home Loan',purpose:'Disbursement Confirmation',dt:'2026-04-21T14:00',notes:''},
+    {id:3,name:'Demo Borrower D',phone:'95xxxxxxxx',ltype:'Home Loan',purpose:'Document Collection',dt:'2026-04-21T15:00',notes:'ITR missing'}
+  ];
+})();
+function saveFUPS(){try{localStorage.setItem('crm-fups',JSON.stringify(FUPS));}catch(e){}}
+function openFollowupModal(){
+  ['f-name','f-phone','f-notes','f-datetime'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('f-ltype').selectedIndex=0;
+  document.getElementById('f-purpose').selectedIndex=0;
+  openOv('m-follow');
+}
+function saveFollowup(){
+  var n=document.getElementById('f-name').value.trim();
+  var dt=document.getElementById('f-datetime').value;
+  if(!n||!dt){crmT('Name and Date required','err');return;}
+  FUPS.push({id:Date.now(),name:n,phone:document.getElementById('f-phone').value.trim(),
+    ltype:document.getElementById('f-ltype').value,purpose:document.getElementById('f-purpose').value,
+    dt:dt,notes:document.getElementById('f-notes').value.trim()});
+  saveFUPS(); closeOv('m-follow'); crmT('Follow-up scheduled!','ok');
+  renderCalendar();
+}
+
+/* ── CALENDAR PREV/NEXT ──────────────────────────────────────── */
+var _calDate=new Date(2026,3,1);
+var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function renderCalendar(){
+  var grid=document.getElementById('cal-grid'); if(!grid)return;
+  var lbl=document.getElementById('cal-label');
+  var y=_calDate.getFullYear(), m=_calDate.getMonth();
+  lbl.textContent=MONTHS[m]+' '+y;
+  var first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate();
+  var today=new Date(), isToday=function(d){return today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===d;};
+  var byDate={};
+  FUPS.forEach(function(f){if(!f.dt)return;var d=new Date(f.dt);if(d.getFullYear()===y&&d.getMonth()===m){var k=d.getDate();(byDate[k]=byDate[k]||[]).push(f);}});
+  var html='';
+  for(var i=0;i<first;i++)html+='<div style="padding:12px;min-height:80px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);"></div>';
+  for(var d=1;d<=days;d++){
+    var pills=(byDate[d]||[]).slice(0,2).map(function(f){
+      return '<div style="margin-top:4px;font-size:10px;background:var(--primary-muted);color:var(--primary);padding:2px 6px;border-radius:3px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+f.name+' — '+f.purpose+'">'+f.name+'</div>';
+    }).join('');
+    html+='<div style="padding:12px;min-height:80px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);font-size:13px;'+(isToday(d)?'font-weight:700;color:var(--primary);background:var(--primary-muted);':'')+'">'+d+(isToday(d)?' · Today':'')+pills+'</div>';
+  }
+  grid.innerHTML=html;
+}
+function calPrev(){_calDate=new Date(_calDate.getFullYear(),_calDate.getMonth()-1,1);renderCalendar();}
+function calNext(){_calDate=new Date(_calDate.getFullYear(),_calDate.getMonth()+1,1);renderCalendar();}
+function delBorrow(id){
+  if(!confirm('Delete?'))return; BROWS=BROWS.filter(function(x){return x.id!==id;}); saveBROWS(); filterBorrowers(); crmT('Deleted','ok');
+}
+function exportBorrowersCSV(){
+  var hd=['Name','Phone','Loan Type','Amount','Bank','CIBIL','EMI Date','Status'];
+  var csv=[hd].concat(BROWS.map(function(b){return[b.name,b.phone,b.loanType,b.amount,b.bank,b.cibil,b.emi,b.status];}))
+    .map(function(r){return r.map(function(c){return'"'+(c||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='borrowers.csv'; a.click(); crmT('Exported!','ok');
+}
+
+function showEligCard(card){
+  var t=card.querySelector('.pc-title').textContent;
+  document.getElementById('elig-cards').style.display='none';
+  document.getElementById('elig-engine').style.display='';
+  document.getElementById('elig-title').textContent=t;
+  var src='';
+  var msg=document.getElementById('elig-msg'); if(msg){msg.style.display='none';msg.innerHTML='';}
+  var frame=document.getElementById('elig-frame');
+  if(/Business/i.test(t)){
+    frame.style.display=''; src='https://easyadpromotion.github.io/Eligibility-engine/user-app.html';
+    frame.src=src; return;
+  }
+  // Personal Loan / Home Loan / LAP — AI Search Engine powered by Claude
+  var prod=/Personal/i.test(t)?'Personal Loan':/Property|LAP/i.test(t)?'Loan Against Property':'Home Loan';
+  frame.style.display='none'; frame.src='';
+  if(!msg)return;
+  msg.style.display='';
+  msg.style.textAlign='left'; msg.style.padding='20px';
+  msg.innerHTML=
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'
+    +'<span style="background:linear-gradient(135deg,var(--gold),var(--blue));color:#000;font-weight:800;font-size:11px;padding:4px 10px;border-radius:999px;">✨ AI SEARCH</span>'
+    +'<h3 style="font-family:Syne,sans-serif;font-weight:700;font-size:17px;margin:0;">'+prod+' — Find Eligible Banks / NBFCs</h3></div>'
+    +'<div class="f2" style="margin-bottom:12px;">'
+      +'<div class="fg"><label>Monthly Income (₹)</label><input class="fc" id="ai-inc" placeholder="75000" type="number"></div>'
+      +'<div class="fg"><label>CIBIL Score</label><input class="fc" id="ai-cib" placeholder="720" type="number"></div>'
+      +'<div class="fg"><label>Loan Amount (₹)</label><input class="fc" id="ai-amt" placeholder="25,00,000"></div>'
+      +'<div class="fg"><label>Employment</label><select class="fc" id="ai-emp"><option value="Salaried">Salaried</option><option value="Self-Employed">Self-Employed (ITR)</option><option value="Business Owner">Business Owner</option><option value="Professional">Professional (Dr/CA)</option></select></div>'
+      +'<div class="fg"><label>Location (City)</label><input class="fc" id="ai-loc" placeholder="Vizag"></div>'
+      +'<div class="fg"><label>Age</label><input class="fc" id="ai-age" placeholder="34" type="number"></div>'
+      +(prod==='Loan Against Property'?'<div class="fg full"><label>Property Type</label><select class="fc" id="ai-pt"><option>Residential</option><option>Commercial</option><option>Industrial</option><option>Plot</option></select></div>':'')
+      +(prod==='Home Loan'?'<div class="fg full"><label>Property Type</label><select class="fc" id="ai-pt"><option>Ready-to-move</option><option>Under Construction</option><option>Resale</option><option>Plot + Construction</option></select></div>':'')
+    +'</div>'
+    +'<button class="ov-save" style="width:100%;" onclick="runAIElig(\''+prod+'\')">🔍 Run AI Eligibility Search</button>'
+    +'<div id="ai-out" style="margin-top:14px;"></div>';
+}
+async function runAIElig(prod){
+  var v=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+  var inc=v('ai-inc'),cib=v('ai-cib'),amt=v('ai-amt'),emp=v('ai-emp'),loc=v('ai-loc'),age=v('ai-age'),pt=v('ai-pt');
+  if(!inc||!cib||!amt){crmT('Income, CIBIL and Amount required','err');return;}
+  var out=document.getElementById('ai-out');
+  out.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted);"><div style="display:inline-block;width:22px;height:22px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div><div style="margin-top:10px;font-size:12px;">AI analyzing 46+ banks & NBFCs…</div></div><style>@keyframes spin{to{transform:rotate(360deg);}}</style>';
+  var q='You are an Indian '+prod+' eligibility advisor with deep knowledge of 46+ banks and NBFCs as of 2026. Given this borrower profile, return a JSON array (no prose, no markdown fences) of 6-10 best-matched banks/NBFCs, sorted by match %. Each object must have: bank, match (0-100 integer), roi (string e.g. "8.75-9.25%"), maxAmt (string e.g. "₹75L"), tat (string e.g. "5-7 days"), reason (1 short sentence on fit).\n\nBorrower: Product='+prod+'; Income=₹'+inc+'/mo; CIBIL='+cib+'; Requested=₹'+amt+'; Employment='+emp+'; Age='+age+'; City='+loc+(pt?'; PropertyType='+pt:'')+'.\n\nReturn ONLY a valid JSON array, nothing else.';
+  try{
+    var resp=await window.claude.complete(q);
+    var txt=String(resp||'').trim();
+    // strip fences if present
+    var m=txt.match(/\[[\s\S]*\]/); if(m) txt=m[0];
+    var banks=JSON.parse(txt);
+    if(!Array.isArray(banks)||!banks.length){out.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);">No matches found — try widening criteria.</div>';return;}
+    var html='<div style="font-family:Syne,sans-serif;font-weight:700;font-size:14px;margin-bottom:10px;">AI-Matched Banks &amp; NBFCs ('+banks.length+')</div>';
+    banks.forEach(function(b){
+      var mtch=b.match||0;
+      var col=mtch>=85?'var(--green)':mtch>=70?'var(--gold)':'var(--muted)';
+      var bg=mtch>=85?'rgba(34,217,160,.08)':mtch>=70?'rgba(245,200,66,.08)':'var(--surface-2)';
+      var bd=mtch>=85?'var(--green)':mtch>=70?'var(--gold)':'var(--border)';
+      html+='<div style="background:'+bg+';border:1px solid '+bd+';border-radius:8px;padding:12px;margin-bottom:8px;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+          +'<strong style="font-size:13px;color:'+col+';">'+(b.bank||'Unknown')+'</strong>'
+          +'<span style="background:'+col+';color:#000;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;">Match '+mtch+'%</span>'
+        +'</div>'
+        +'<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">'
+          +(b.roi?'<span>ROI: <strong>'+b.roi+'</strong></span>':'')
+          +(b.maxAmt?'<span>Max: <strong>'+b.maxAmt+'</strong></span>':'')
+          +(b.tat?'<span>TAT: <strong>'+b.tat+'</strong></span>':'')
+        +'</div>'
+        +(b.reason?'<div style="font-size:11px;color:var(--muted);font-style:italic;">'+b.reason+'</div>':'')
+        +'</div>';
+    });
+    out.innerHTML=html;
+  }catch(err){
+    out.innerHTML='<div style="padding:20px;background:var(--surface-2);border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:12px;">AI search failed: '+err.message+'. Please retry.</div>';
+  }
+}
+function hideEligCard(){
+  document.getElementById('elig-cards').style.display='';
+  document.getElementById('elig-engine').style.display='none';
+  document.getElementById('elig-frame').src='';
+}
+
+var BNKRS=(function(){try{var d=JSON.parse(localStorage.getItem('crm-bnkr')||'[]');if(d.length)return d;}catch(e){}
+  return [{id:1,name:'Rajiv Sharma',bank:'HDFC Bank',desig:'Branch Manager',role:'RM - Home Loans',loc:'Vizag',phone:'9876543210',email:'r.sharma@hdfcbank.com',prod:'Home Loans'},
+    {id:2,name:'Pradeep Menon',bank:'SBI',desig:'Credit Head',role:'RM - LAP',loc:'Vijayawada',phone:'9876543211',email:'p.menon@sbi.co.in',prod:'LAP'},
+    {id:3,name:'Ananya Krishnan',bank:'Axis Bank',desig:'Relationship Manager',role:'RM - Personal',loc:'Hyderabad',phone:'9876543212',email:'a.k@axisbank.com',prod:'Personal Loan'},
+    {id:4,name:'Vinod Rao',bank:'ICICI Bank',desig:'Senior RM',role:'RM - Home',loc:'Vizag',phone:'9876543213',email:'v.rao@icicibank.com',prod:'Home Loan'}];
+})();
+var _eCid=null, _xlData=[];
+function saveBNKRS(){try{localStorage.setItem('crm-bnkr',JSON.stringify(BNKRS));}catch(e){}}
+function initials(n){var p=(n||'?').trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+function renderBankers(list){
+  var g=document.getElementById('bankers-grid'), lb=document.getElementById('bankers-lbl');
+  if(!g)return; if(lb)lb.textContent=list.length+' contact'+(list.length!==1?'s':'');
+  if(!list.length){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">No contacts. Add or import from Excel.</div>';return;}
+  g.innerHTML=list.map(function(c){
+    var ph=(c.phone||'').replace(/[^0-9]/g,'');
+    return '<div class="cc-card">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+        +'<div class="cc-av">'+initials(c.name)+'</div>'
+        +'<div><div style="font-family:Syne,sans-serif;font-weight:700;font-size:14px;margin-bottom:2px;">'+c.name+'</div>'
+        +'<div style="font-size:11px;color:var(--muted);">'+(c.desig||c.role||'')+'</div></div></div>'
+      +'<div style="font-size:12px;font-weight:600;color:var(--gold);margin-bottom:3px;">'+(c.bank||'')+'</div>'
+      +(c.role&&c.desig?'<div style="font-size:11px;color:var(--muted);margin-bottom:3px;">'+c.role+'</div>':'')
+      +(c.loc?'<div style="font-size:11px;color:var(--muted);margin-bottom:5px;">📍 '+c.loc+'</div>':'')
+      +(c.phone?'<div style="font-size:11px;color:var(--muted);margin-bottom:3px;">'+c.phone+'</div>':'')
+      +(c.email?'<div style="font-size:11px;color:var(--muted);margin-bottom:5px;">'+c.email+'</div>':'')
+      +(c.prod?'<div style="font-size:11px;color:var(--blue);margin-bottom:8px;">'+c.prod+'</div>':'')
+      +'<div style="display:flex;gap:5px;">'
+        +'<button style="flex:1;background:rgba(61,139,255,.1);border:1px solid rgba(61,139,255,.2);border-radius:5px;padding:5px;color:var(--blue);cursor:pointer;font-size:11px;" onclick="window.open(\'tel:'+c.phone+'\')">Call</button>'
+        +'<button style="flex:1;background:rgba(34,217,160,.1);border:1px solid rgba(34,217,160,.2);border-radius:5px;padding:5px;color:var(--green);cursor:pointer;font-size:11px;" onclick="window.open(\'https://wa.me/91'+ph+'\')">WA</button>'
+        +'<button style="background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.2);border-radius:5px;padding:5px 8px;color:var(--gold);cursor:pointer;font-size:11px;" onclick="editContact('+c.id+')">Edit</button>'
+        +'<button style="background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.2);border-radius:5px;padding:5px 8px;color:var(--red);cursor:pointer;font-size:11px;" onclick="delContact('+c.id+')">Del</button>'
+      +'</div></div>';
+  }).join('');
+}
+function filterBankers(){
+  var q=(document.getElementById('banker-q').value||'').toLowerCase();
+  renderBankers(BNKRS.filter(function(b){return !q||[b.name,b.bank,b.role,b.desig,b.loc,b.prod,b.phone].join(' ').toLowerCase().indexOf(q)>=0;}));
+}
+function openContactModal(){
+  _eCid=null; document.getElementById('m-c-title').textContent='Add Contact';
+  ['c-name','c-bank','c-desig','c-role','c-loc','c-phone','c-email','c-prod'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  openOv('m-contact');
+}
+function editContact(id){
+  var c=BNKRS.filter(function(x){return x.id===id;})[0]; if(!c)return; _eCid=id;
+  document.getElementById('m-c-title').textContent='Edit Contact';
+  document.getElementById('c-name').value=c.name||''; document.getElementById('c-bank').value=c.bank||'';
+  document.getElementById('c-desig').value=c.desig||''; document.getElementById('c-role').value=c.role||'';
+  document.getElementById('c-loc').value=c.loc||''; document.getElementById('c-phone').value=c.phone||'';
+  document.getElementById('c-email').value=c.email||''; document.getElementById('c-prod').value=c.prod||'';
+  openOv('m-contact');
+}
+function saveContact(){
+  var n=document.getElementById('c-name').value.trim(), bk=document.getElementById('c-bank').value.trim();
+  if(!n||!bk){crmT('Name and Bank required','err');return;}
+  var o={id:_eCid||Date.now(),name:n,bank:bk,
+    desig:document.getElementById('c-desig').value.trim(),
+    role:document.getElementById('c-role').value.trim(),
+    loc:document.getElementById('c-loc').value.trim(),
+    phone:document.getElementById('c-phone').value.trim(),
+    email:document.getElementById('c-email').value.trim(),
+    prod:document.getElementById('c-prod').value.trim()};
+  if(_eCid){var i=BNKRS.findIndex(function(x){return x.id===_eCid;});if(i>-1)BNKRS[i]=o;crmT('Updated!','ok');}
+  else{BNKRS.push(o);crmT('Added!','ok');}
+  saveBNKRS(); closeOv('m-contact'); filterBankers();
+}
+function delContact(id){
+  if(!confirm('Delete?'))return; BNKRS=BNKRS.filter(function(x){return x.id!==id;}); saveBNKRS(); filterBankers(); crmT('Deleted','ok');
+}
+function importXL(input){
+  var file=input.files[0]; if(!file)return;
+  if(typeof XLSX==='undefined'){crmT('XLSX not loaded','err');return;}
+  var r=new FileReader();
+  r.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var raw=XLSX.utils.sheet_to_json(ws,{defval:''});
+      _xlData=raw.map(function(row,i){
+        var ks=Object.keys(row).map(function(k){return k.toLowerCase().trim();});
+        function g(){
+          var ns=Array.prototype.slice.call(arguments);
+          for(var ni=0;ni<ns.length;ni++){
+            var k=ks.filter(function(k){return k.indexOf(ns[ni])>=0;})[0];
+            if(k){var oi=ks.indexOf(k);return String(row[Object.keys(row)[oi]]||'').trim();}
+          }return '';
+        }
+        return{id:Date.now()+i,name:g('name','contact','person'),bank:g('bank','company','org','nbfc'),
+          desig:g('designation','title','position','grade'),
+          role:g('role','team','department','dept'),
+          loc:g('location','city','branch','geo','region','state'),
+          phone:g('phone','mobile','number'),
+          email:g('email','mail'),prod:g('product','specialty','loan','type')};
+      }).filter(function(c){return c.name||c.phone;});
+      document.getElementById('xl-cnt').textContent=_xlData.length;
+      var cols=['Name','Bank','Designation','Location','Phone','Email','Product'];
+      var rows=_xlData.slice(0,25).map(function(c){
+        return '<tr>'+[c.name,c.bank,(c.desig||c.role),c.loc,c.phone,c.email,c.prod].map(function(v){
+          return '<td style="padding:5px 8px;border-bottom:1px solid var(--border);">'+(v||'')+'</td>';
+        }).join('')+'</tr>';
+      }).join('');
+      document.getElementById('xl-prev-tbl').innerHTML=
+        '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>'
+        +cols.map(function(c){return '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:10px;text-transform:uppercase;">'+c+'</th>';}).join('')
+        +'</tr></thead><tbody>'+rows+'</tbody></table>';
+      openOv('m-xl-prev');
+    }catch(err){crmT('Error: '+err.message,'err');}
+    input.value='';
+  };
+  r.readAsArrayBuffer(file);
+}
+function confirmXL(){
+  if(!_xlData.length)return; BNKRS=BNKRS.concat(_xlData); saveBNKRS(); closeOv('m-xl-prev');
+  filterBankers(); crmT('Imported '+_xlData.length+' contacts!','ok'); _xlData=[];
+}
+
+var PROWS=[], _pn=0;
+var LTYPES=['Home Loan','LAP','Business Loan','Personal Loan','Plot Loan','BT+TopUp'];
+function addPayRow(){
+  _pn++; var id='p'+_pn;
+  PROWS.push({id:id,name:'',lt:'Home Loan',amt:0,pct:0,gst:false,gross:0,gsta:0,tds:0,net:0});
+  renderPayTable();
+  setTimeout(function(){var el=document.getElementById('pn-'+id);if(el)el.focus();},50);
+}
+function remPayRow(id){PROWS=PROWS.filter(function(r){return r.id!==id;});renderPayTable();}
+function recalc(id){
+  var r=PROWS.filter(function(x){return x.id===id;})[0]; if(!r)return;
+  r.name=(document.getElementById('pn-'+id)||{}).value||'';
+  r.lt=(document.getElementById('plt-'+id)||{}).value||'Home Loan';
+  r.amt=parseFloat((document.getElementById('pla-'+id)||{}).value)||0;
+  r.pct=parseFloat((document.getElementById('ppr-'+id)||{}).value)||0;
+  r.gst=(document.getElementById('pgst-'+id)||{}).checked||false;
+  r.gross=r.amt*r.pct/100; r.gsta=r.gst?r.gross*0.18:0; r.tds=r.gross*0.10;
+  r.net=r.gst?(r.gross+r.gsta-r.tds):(r.gross-r.tds);
+  function s(i,v){var el=document.getElementById(i);if(el)el.textContent=v;}
+  s('pg-'+id,rupee(r.gross)); s('pga-'+id,rupee(r.gsta)); s('ptd-'+id,rupee(r.tds)); s('pnt-'+id,rupee(r.net));
+  refPayTots();
+}
+function refPayTots(){
+  function sm(k){return PROWS.reduce(function(a,r){return a+(r[k]||0);},0);}
+  function s(i,v){var el=document.getElementById(i);if(el)el.textContent=v;}
+  s('tot-g',rupee(sm('gross'))); s('tot-gst',rupee(sm('gsta'))); s('tot-tds',rupee(sm('tds'))); s('tot-net',rupee(sm('net')));
+}
+function renderPayTable(){
+  var tb=document.getElementById('pay-tbody'); if(!tb)return;
+  if(!PROWS.length){tb.innerHTML='<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--muted);">Click + Add Customer to begin</td></tr>';refPayTots();return;}
+  tb.innerHTML=PROWS.map(function(r,i){
+    var lo=LTYPES.map(function(t){return '<option'+(r.lt===t?' selected':'')+'>'+t+'</option>';}).join('');
+    return '<tr>'
+      +'<td style="color:var(--muted);font-size:11px;">'+(i+1)+'</td>'
+      +'<td><input class="pt-inp" id="pn-'+r.id+'" value="'+r.name+'" placeholder="Customer name" oninput="recalc(\''+r.id+'\')" style="min-width:110px;"></td>'
+      +'<td><select class="pt-sel" id="plt-'+r.id+'" onchange="recalc(\''+r.id+'\')">'+lo+'</select></td>'
+      +'<td><input class="pt-inp" id="pla-'+r.id+'" value="'+(r.amt||'')+'" type="number" placeholder="0" oninput="recalc(\''+r.id+'\')" style="min-width:80px;"></td>'
+      +'<td><input class="pt-inp" id="ppr-'+r.id+'" value="'+(r.pct||'')+'" type="number" step="0.01" placeholder="0.00" oninput="recalc(\''+r.id+'\')" style="min-width:55px;"></td>'
+      +'<td id="pg-'+r.id+'" style="color:var(--gold);font-weight:600;">'+rupee(r.gross)+'</td>'
+      +'<td><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;white-space:nowrap;"><input type="checkbox" id="pgst-'+r.id+'" '+(r.gst?'checked':'')+' onchange="recalc(\''+r.id+'\')" style="accent-color:var(--gold);"> GST</label></td>'
+      +'<td id="pga-'+r.id+'" style="color:var(--blue);">'+rupee(r.gsta)+'</td>'
+      +'<td id="ptd-'+r.id+'" style="color:var(--red);">'+rupee(r.tds)+'</td>'
+      +'<td id="pnt-'+r.id+'" style="color:var(--green);font-weight:700;">'+rupee(r.net)+'</td>'
+      +'<td><button style="background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.25);border-radius:4px;padding:4px 9px;color:var(--red);cursor:pointer;font-size:11px;" onclick="remPayRow(\''+r.id+'\')">X</button></td>'
+    +'</tr>';
+  }).join('');
+  refPayTots();
+}
+function exportPayCSV(){
+  if(!PROWS.length){crmT('No data','err');return;}
+  var hd=['#','Customer','Loan Type','Amount','Payout %','Gross','GST?','GST Amt','TDS','Net'];
+  var csv=[hd].concat(PROWS.map(function(r,i){return[i+1,r.name,r.lt,r.amt,r.pct,(r.gross||0).toFixed(2),r.gst?'Yes':'No',(r.gsta||0).toFixed(2),(r.tds||0).toFixed(2),(r.net||0).toFixed(2)];}))
+    .map(function(r){return r.map(function(c){return '"'+String(c||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='payout.csv'; a.click(); crmT('Exported!','ok');
+}
+
+var _polCat='', _ePid=null;
+var PCAT={business:{lb:'Business Loan',col:'var(--blue)'},personal:{lb:'Personal Loan',col:'var(--green)'},home:{lb:'Home Loan',col:'var(--gold)'},lap:{lb:'LAP',col:'#a78bfa'}};
+function gPols(cat){try{return JSON.parse(localStorage.getItem('crm-pol-'+cat)||'[]');}catch(e){return[];}}
+function sPols(cat,a){try{localStorage.setItem('crm-pol-'+cat,JSON.stringify(a));}catch(e){}}
+function refreshPolCounts(){
+  var m={business:'pc-bl-cnt',personal:'pc-pl-cnt',home:'pc-hl-cnt',lap:'pc-lap-cnt'};
+  Object.keys(m).forEach(function(cat){var el=document.getElementById(m[cat]);if(!el)return;var n=gPols(cat).length;el.textContent=n?n+' polic'+(n===1?'y':'ies')+' saved':'No policies yet';});
+}
+function showPolCat(cat){
+  _polCat=cat; document.getElementById('pol-cards').style.display='none'; document.getElementById('pol-cat-area').style.display='';
+  var info=PCAT[cat]||{};
+  document.getElementById('pol-cat-title').textContent=info.lb||cat;
+  document.getElementById('pol-cat-title').style.color=info.col||'';
+  renderPolList(cat);
+}
+function hidePolCat(){_polCat='';document.getElementById('pol-cards').style.display='';document.getElementById('pol-cat-area').style.display='none';refreshPolCounts();}
+function renderPolList(cat){
+  var c=document.getElementById('pol-list'), e=document.getElementById('pol-empty');
+  var list=gPols(cat);
+  if(!list.length){c.innerHTML='';e.style.display='';return;} e.style.display='none';
+  // Auto-split view: group by bank, sorted A-Z
+  var groups={};
+  list.forEach(function(p){var k=(p.bank||'Unknown').trim();(groups[k]=groups[k]||[]).push(p);});
+  var bankNames=Object.keys(groups).sort(function(a,b){return a.localeCompare(b);});
+  function renderItem(p){
+    var hls=(p.hl||'').split('\n').filter(Boolean).slice(0,3).map(function(l){return '&bull; '+l;}).join('  ');
+    return '<div class="pol-item" style="margin-bottom:6px;">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">'
+        +'<div style="flex:1;">'
+          +'<div style="font-size:12px;color:var(--gold);margin-bottom:4px;">ROI: '+(p.roi||'&mdash;')+' &middot; Amt: '+(p.amt||'&mdash;')+' &middot; CIBIL: '+(p.cibil||'&mdash;')+(p.tat?' &middot; TAT: '+p.tat:'')+'</div>'
+          +(p.loc?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">📍 '+p.loc+'</div>':'')
+          +(hls?'<div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:5px;">'+hls+'</div>':'')
+          +(p.con?'<div style="font-size:11px;color:var(--muted);">'+p.con+'</div>':'')
+          +(p.pay?'<div style="font-size:12px;color:var(--green);margin-top:3px;">Payout: '+p.pay+'</div>':'')
+        +'</div>'
+        +'<div style="display:flex;gap:6px;flex-shrink:0;">'
+          +'<button style="background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.2);border-radius:5px;padding:5px 9px;color:var(--gold);cursor:pointer;font-size:11px;" onclick="editPol(\''+cat+'\','+p.id+')">Edit</button>'
+          +'<button style="background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.2);border-radius:5px;padding:5px 9px;color:var(--red);cursor:pointer;font-size:11px;" onclick="delPol(\''+cat+'\','+p.id+')">Del</button>'
+        +'</div></div></div>';
+  }
+  c.innerHTML=bankNames.map(function(bk){
+    var items=groups[bk];
+    return '<div style="margin-bottom:18px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:6px;margin-bottom:8px;">'
+        +'<span style="font-family:Syne,sans-serif;font-weight:700;font-size:14px;">'+bk+'</span>'
+        +'<span style="background:rgba(245,200,66,.15);color:var(--gold);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">'+items.length+' polic'+(items.length===1?'y':'ies')+'</span>'
+      +'</div>'
+      +items.map(renderItem).join('')
+      +'</div>';
+  }).join('');
+}
+function openPastePol(){
+  document.getElementById('m-pp-title').textContent='Paste Policy - '+(PCAT[_polCat]||{}).lb;
+  document.getElementById('pol-paste-txt').value='';
+  openOv('m-paste-pol');
+}
+function parsePastePol(){
+  var raw=document.getElementById('pol-paste-txt').value.trim();
+  if(!raw){crmT('Paste text first','err');return;}
+  function cleanS(s){
+    var out='';
+    for(var i=0;i<s.length;i++){
+      var code=s.charCodeAt(i);
+      if(code>0xFFFF)continue;
+      var ch=s[i];
+      if(ch==='◆'||ch==='→'||ch==='•'||ch==='►'||ch==='✔'||ch==='*')continue;
+      out+=ch;
+    }
+    return out.trim();
+  }
+  // ── AUTO-SPLIT: detect multiple banks in one paste and split into segments
+  var KNOWN_BANKS=['HDFC','ICICI','SBI','Axis','Kotak','IndusInd','Yes Bank','IDFC','RBL','Federal','Bandhan','Bank of Baroda','BOB','PNB','Punjab National','Canara','Union Bank','Bajaj Finserv','Bajaj Finance','Tata Capital','L&T Finance','Aditya Birla','Piramal','Hero Fincorp','Cholamandalam','Mahindra Finance','Muthoot','Shriram','Poonawalla','Fullerton','Incred','Lendingkart','Indifi','Flexiloans','NeoGrowth','Ugro','Clix Capital','DMI Finance','Northern Arc','Fedfina','Godrej Housing','LIC Housing','PNB Housing','IIFL','Motilal Oswal','Standard Chartered','HSBC','DBS','Deutsche','Citibank'];
+  var bankRx=new RegExp('^\\s*(?:\\d+[\\).\\s-]*)?((?:'+KNOWN_BANKS.join('|').replace(/([.+*?()|\[\]])/g,'\\$1')+')(?:\\s+(?:Bank|Ltd|Limited|Housing|Finance|Finserv|Fincorp|Capital))?)\\s*(?::|\\-|$)','i');
+  // Split raw text on lines that look like a bank name header
+  var lines=raw.split(/\r?\n/);
+  var segments=[]; var cur=null;
+  for(var li=0;li<lines.length;li++){
+    var ln=lines[li];
+    var m=ln.match(bankRx);
+    if(m && m[1]){
+      if(cur) segments.push(cur);
+      cur={bank:cleanS(m[1]),body:[ln]};
+    } else if(cur){
+      cur.body.push(ln);
+    }
+  }
+  if(cur) segments.push(cur);
+  // Fallback: single bank (first line = bank)
+  if(!segments.length){
+    segments=[{bank:cleanS((lines[0]||'').trim())||'Unknown Bank',body:lines}];
+  }
+  function parseSeg(seg){
+    var txt=seg.body.join('\n');
+    function gF(){
+      var pats=Array.prototype.slice.call(arguments);
+      for(var i=0;i<pats.length;i++){var mm=txt.match(pats[i]);if(mm)return cleanS(mm[1]||'');}
+      return '';
+    }
+    var roi  =gF(/ROI\s*[:\-]+\s*([\d.%\s\-tTo]+)/i, /[Rr]ate\s*[:\-]+\s*([\d.%\s\-tTo]+)/i);
+    var amt  =gF(/[Ll]oan\s*[Aa]mount[^\n]{0,5}([^\n]{3,30})/i, /[Mm]ax[^\n]{0,10}?([\d.,]+\s*(?:L|Cr|Lakhs?|Crores?))/i);
+    var cibil=gF(/[Cc]ibil[\s:>\-]*(\d{3}\+?)/i, /[Ss]core[\s:>\-]*(\d{3}\+?)/i);
+    var tat  =gF(/TAT[\s:\-]*([^\n]{2,25})/i, /[Tt]urn[\s:\-]*([^\n]{2,25})/i);
+    var loc  =gF(/[Gg]eo[^\n]*[:\-]\s*([^\n]+)/i, /[Ll]ocation[\s:]+([^\n]+)/i, /[Cc]it(?:y|ies)[\s:]+([^\n]+)/i);
+    var pay  =gF(/[Pp]ayout[\s:\-]*([^\n]+)/i, /[Cc]ommission[\s:\-]*([^\n]+)/i, /[Uu]pto\s*([\d.]+\s*%)/i);
+    var phones=(txt.match(/[6-9]\d{9}/g)||[]).slice(0,2);
+    var email=(txt.match(/\w[\w.]*@[\w.]+\.\w{2,}/)||[])[0]||'';
+    var pm=txt.match(/([A-Za-z][A-Za-z ]+)\s*[\|\-]\s*\d{10}/);
+    var con=[(pm?pm[1].trim():null)].concat(phones).concat([email||null]).filter(Boolean).join(' | ');
+    var hl=txt.split('\n').map(function(l){return cleanS(l);})
+      .filter(function(l){return l.length>5&&l.length<120&&!/^(ROI|Rate|Loan Amount|Cibil|Score|Geo|Location|Payout|Commission|TAT|Programs?:)/i.test(l);})
+      .slice(0,8).join('\n');
+    return {id:Date.now()+Math.floor(Math.random()*1000),bank:seg.bank,roi:roi,amt:amt,cibil:cibil,tat:tat,loc:loc,pay:pay,con:con,hl:hl};
+  }
+  var parsed=segments.map(parseSeg);
+  var list=gPols(_polCat).concat(parsed).sort(function(a,b){return(a.bank||'').localeCompare(b.bank||'');});
+  sPols(_polCat,list); renderPolList(_polCat);
+  closeOv('m-paste-pol');
+  if(parsed.length>1) crmT('Auto-split: '+parsed.length+' banks detected & saved','ok');
+  else crmT('Policy saved: '+parsed[0].bank,'ok');
+}
+function openAddPol(){
+  _ePid=null;
+  document.getElementById('m-ap-title').textContent='Add Policy - '+(PCAT[_polCat]||{}).lb;
+  ['p-bank','p-roi','p-amt','p-cibil','p-tat','p-pay','p-loc','p-hl','p-con'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  openOv('m-add-pol');
+}
+function editPol(cat,id){
+  _polCat=cat; _ePid=id;
+  var p=gPols(cat).filter(function(x){return x.id===id;})[0]; if(!p)return;
+  document.getElementById('m-ap-title').textContent='Edit Policy - '+(PCAT[cat]||{}).lb;
+  document.getElementById('p-bank').value=p.bank||''; document.getElementById('p-roi').value=p.roi||'';
+  document.getElementById('p-amt').value=p.amt||''; document.getElementById('p-cibil').value=p.cibil||'';
+  document.getElementById('p-tat').value=p.tat||''; document.getElementById('p-pay').value=p.pay||'';
+  document.getElementById('p-loc').value=p.loc||''; document.getElementById('p-hl').value=p.hl||'';
+  document.getElementById('p-con').value=p.con||'';
+  openOv('m-add-pol');
+}
+function savePolItem(){
+  var bn=document.getElementById('p-bank').value.trim();
+  if(!bn){crmT('Bank name required','err');return;}
+  var o={id:_ePid||Date.now(),bank:bn,roi:document.getElementById('p-roi').value.trim(),
+    amt:document.getElementById('p-amt').value.trim(),cibil:document.getElementById('p-cibil').value.trim(),
+    tat:document.getElementById('p-tat').value.trim(),pay:document.getElementById('p-pay').value.trim(),
+    loc:document.getElementById('p-loc').value.trim(),hl:document.getElementById('p-hl').value.trim(),
+    con:document.getElementById('p-con').value.trim()};
+  var list=gPols(_polCat);
+  if(_ePid){var i=list.findIndex(function(p){return p.id===_ePid;});if(i>-1)list[i]=o;crmT('Updated!','ok');}
+  else{list.unshift(o);crmT('Policy added!','ok');}
+  sPols(_polCat,list); renderPolList(_polCat); closeOv('m-add-pol');
+}
+function delPol(cat,id){
+  if(!confirm('Delete?'))return;
+  sPols(cat,gPols(cat).filter(function(p){return p.id!==id;}));
+  renderPolList(cat); crmT('Deleted','ok');
+}
+
+/* ── FILES DUMP (Business Loan credit profile template + placeholders for others) ─── */
+var DUMP_CAT='';
+function gDump(cat){try{return JSON.parse(localStorage.getItem('crm-dump-'+cat)||'[]');}catch(e){return[];}}
+function sDump(cat,a){try{localStorage.setItem('crm-dump-'+cat,JSON.stringify(a));}catch(e){}}
+var DCAT={business:{lb:'Business Loan',col:'var(--blue)'},personal:{lb:'Personal Loan',col:'var(--green)'},home:{lb:'Home Loan',col:'var(--gold)'},lap:{lb:'LAP',col:'#a78bfa'}};
+function renderDumpGrid(){
+  var m={business:'dc-bl-cnt',personal:'dc-pl-cnt',home:'dc-hl-cnt',lap:'dc-lap-cnt'};
+  Object.keys(m).forEach(function(cat){var el=document.getElementById(m[cat]);if(!el)return;var n=gDump(cat).length;el.textContent=n?n+' profile'+(n===1?'':'s')+' saved':'No profiles yet';});
+}
+function showDumpCat(cat){
+  DUMP_CAT=cat;
+  document.getElementById('dump-cards').style.display='none';
+  document.getElementById('dump-area').style.display='';
+  var info=DCAT[cat]||{}; var t=document.getElementById('dump-title');
+  t.textContent=info.lb||cat; t.style.color=info.col||'';
+  document.getElementById('dump-add-btn').style.display=cat==='business'?'':'none';
+  renderDumpList();
+}
+function hideDumpCat(){DUMP_CAT='';document.getElementById('dump-cards').style.display='';document.getElementById('dump-area').style.display='none';renderDumpGrid();}
+function renderDumpList(){
+  var c=document.getElementById('dump-list'), e=document.getElementById('dump-empty');
+  if(!c)return;
+  if(DUMP_CAT!=='business'){
+    c.innerHTML='<div style="padding:40px;text-align:center;background:var(--surface);border:1px dashed var(--border);border-radius:10px;color:var(--muted);font-size:13px;">Credit-review profile template for <b style="color:var(--text-primary)">'+(DCAT[DUMP_CAT]||{}).lb+'</b> — launching shortly. Use the Business Loan section to see the full template.</div>';
+    e.style.display='none'; return;
+  }
+  var list=gDump('business');
+  if(!list.length){c.innerHTML='';e.style.display='';return;} e.style.display='none';
+  c.innerHTML=list.map(function(p){
+    var fl=function(k,v){return v?'<div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em;">'+k+'</span><div style="font-size:12px;color:var(--text-primary);">'+v+'</div></div>':'';};
+    var rv=p.rdo?'<div style="margin-top:10px;padding:8px 12px;background:var(--surface-2);border-left:3px solid '+(p.rdo==='Doable'?'var(--success)':p.rdo==='Not Doable'?'var(--error)':'var(--warning)')+';border-radius:5px;"><div style="font-size:11px;font-weight:700;color:'+(p.rdo==='Doable'?'var(--success)':p.rdo==='Not Doable'?'var(--error)':'var(--warning)')+'">Credit: '+p.rdo+(p.rb?' · '+p.rb:'')+(p.rbk?' ('+p.rbk+')':'')+'</div>'+(p.rem?'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+p.rem+'</div>':'')+'</div>':'';
+    return '<div class="pol-item">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">'
+        +'<div><div style="font-family:Syne,sans-serif;font-weight:700;font-size:14px;">'+(p.name||'—')+(p.age?' · '+p.age:'')+(p.gender?' · '+p.gender:'')+'</div>'
+        +'<div style="font-size:12px;color:var(--gold);">'+(p.bname||'')+(p.btype?' · '+p.btype:'')+(p.vint?' · '+p.vint:'')+'</div></div>'
+        +'<div style="display:flex;gap:6px;"><button style="background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.2);border-radius:5px;padding:5px 9px;color:var(--gold);cursor:pointer;font-size:11px;" onclick="editDumpItem('+p.id+')">Edit</button>'
+        +'<button style="background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.2);border-radius:5px;padding:5px 9px;color:var(--red);cursor:pointer;font-size:11px;" onclick="delDumpItem('+p.id+')">Del</button></div></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;font-size:12px;">'
+      +fl('Banking T/O',p.tbank?p.tbank+'L':'')+fl('GST T/O',p.tgst?p.tgst+'L':'')+fl('ITR T/O',p.titr?p.titr+'L':'')
+      +fl('Active Loans',p.nloans)+fl('Active Amt',p.aamt)+fl('Unsecured',p.unsec)
+      +fl('EMIs',p.emi)+fl('Bounces 3m',p.b3)+fl('Bounces 6m',p.b6)
+      +fl('Enq 3m',p.e3)+fl('Enq 6m',p.e6)+fl('ABB',p.abb)+fl('Own House',p.own)
+      +fl('Co-App',p.coapp)+fl('Requirement',p.req)
+      +'</div>'
+      +(p.con?'<div style="font-size:11px;color:var(--muted);margin-top:8px;">Contact: '+p.con+'</div>':'')
+      +rv+'</div>';
+  }).join('');
+}
+var _eDid=null;
+var DFIELDS=['d-name','d-age','d-bname','d-vint','d-btype','d-tbank','d-tgst','d-titr','d-nloans','d-aamt','d-unsec','d-emi','d-b6','d-b3','d-e6','d-e3','d-abb','d-req','d-con','d-rb','d-rbk','d-rem'];
+function openDumpModal(){
+  _eDid=null; document.getElementById('m-dump-title').textContent='Add Business Loan Profile';
+  DFIELDS.forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('d-gender').selectedIndex=0; document.getElementById('d-coapp').selectedIndex=0;
+  document.getElementById('d-gst').selectedIndex=0; document.getElementById('d-itr').selectedIndex=0;
+  document.getElementById('d-own').selectedIndex=0; document.getElementById('d-rdo').selectedIndex=0;
+  document.getElementById('d-tgst-wrap').style.display='none'; document.getElementById('d-titr-wrap').style.display='none';
+  openOv('m-dump');
+}
+function editDumpItem(id){
+  var p=gDump('business').filter(function(x){return x.id===id;})[0]; if(!p)return; _eDid=id;
+  document.getElementById('m-dump-title').textContent='Edit Profile';
+  DFIELDS.forEach(function(fid){var el=document.getElementById(fid);if(el)el.value=p[fid.slice(2)]||'';});
+  ['gender','coapp','gst','itr','own','rdo'].forEach(function(k){var el=document.getElementById('d-'+k);if(el&&p[k])el.value=p[k];});
+  document.getElementById('d-tgst-wrap').style.display=p.gst==='Yes'?'':'none';
+  document.getElementById('d-titr-wrap').style.display=p.itr==='Yes'?'':'none';
+  openOv('m-dump');
+}
+function saveDumpItem(){
+  var n=document.getElementById('d-name').value.trim();
+  if(!n){crmT('Customer Name required','err');return;}
+  var o={id:_eDid||Date.now()};
+  DFIELDS.forEach(function(fid){var el=document.getElementById(fid);if(el)o[fid.slice(2)]=el.value.trim();});
+  ['gender','coapp','gst','itr','own','rdo'].forEach(function(k){o[k]=document.getElementById('d-'+k).value;});
+  var list=gDump('business');
+  if(_eDid){var i=list.findIndex(function(x){return x.id===_eDid;});if(i>-1)list[i]=o;crmT('Profile updated','ok');}
+  else{list.unshift(o);crmT('Profile saved','ok');}
+  sDump('business',list); renderDumpList(); renderDumpGrid(); closeOv('m-dump');
+}
+function delDumpItem(id){if(!confirm('Delete?'))return;sDump('business',gDump('business').filter(function(p){return p.id!==id;}));renderDumpList();renderDumpGrid();crmT('Deleted','ok');}
+
+/* ── Payout PDF download (print-based) ──────────────────── */
+function exportPayPDF(){
+  if(!PROWS.length){crmT('No data','err');return;}
+  var rows=PROWS.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+(r.name||'')+'</td><td>'+r.lt+'</td><td>₹'+(r.amt||0).toLocaleString('en-IN')+'</td><td>'+(r.pct||0)+'%</td><td>₹'+Math.round(r.gross).toLocaleString('en-IN')+'</td><td>'+(r.gst?'Yes':'No')+'</td><td>₹'+Math.round(r.gsta).toLocaleString('en-IN')+'</td><td>₹'+Math.round(r.tds).toLocaleString('en-IN')+'</td><td>₹'+Math.round(r.net).toLocaleString('en-IN')+'</td></tr>';}).join('');
+  var sum=function(k){return PROWS.reduce(function(a,r){return a+(r[k]||0);},0);};
+  var w=window.open('','_blank');
+  w.document.write('<html><head><title>Payout Report</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#18231E}h1{font-size:18px;margin:0 0 4px}h2{font-size:12px;font-weight:400;color:#666;margin:0 0 20px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:6px 8px;border:1px solid #ddd;text-align:left}th{background:#f5f5f5;font-size:10px;text-transform:uppercase}tfoot td{font-weight:700;background:#faf8ef}</style></head><body>');
+  w.document.write('<h1>Payout Report</h1><h2>CAN-CRM · Generated '+new Date().toLocaleString()+'</h2>');
+  w.document.write('<table><thead><tr><th>#</th><th>Customer</th><th>Loan Type</th><th>Amount</th><th>Payout %</th><th>Gross</th><th>GST?</th><th>GST Amt</th><th>TDS</th><th>Net Credit</th></tr></thead><tbody>'+rows+'</tbody>');
+  w.document.write('<tfoot><tr><td colspan="5" style="text-align:right">TOTALS</td><td>₹'+Math.round(sum('gross')).toLocaleString('en-IN')+'</td><td></td><td>₹'+Math.round(sum('gsta')).toLocaleString('en-IN')+'</td><td>₹'+Math.round(sum('tds')).toLocaleString('en-IN')+'</td><td>₹'+Math.round(sum('net')).toLocaleString('en-IN')+'</td></tr></tfoot></table>');
+  w.document.write('<script>setTimeout(function(){window.print();},250);<\/script></body></html>');
+  w.document.close(); crmT('Opening PDF...','ok');
+}
+
+/* ── Bank Policies: per-product Excel import + auto-split by Bank/NBFC ─── */
+function importPolExcel(input){
+  var file=input.files[0]; if(!file||!_polCat)return;
+  if(typeof XLSX==='undefined'){crmT('XLSX not loaded','err');return;}
+  var r=new FileReader();
+  r.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var raw=XLSX.utils.sheet_to_json(ws,{defval:''});
+      function find(keys,r){var ks=Object.keys(r);for(var i=0;i<keys.length;i++){var m=ks.find(function(k){return k.toLowerCase().indexOf(keys[i])>=0;});if(m)return String(r[m]||'').trim();}return '';}
+      var added=raw.map(function(row,i){
+        return {id:Date.now()+i,
+          bank:find(['bank','nbfc','lender'],row),
+          roi:find(['roi','rate','interest'],row),
+          amt:find(['amount','loan amt','limit'],row),
+          cibil:find(['cibil','score'],row),
+          tat:find(['tat','turn'],row),
+          pay:find(['payout','commission','dsa'],row),
+          loc:find(['location','geo','city'],row),
+          hl:find(['highlight','feature','note','remark'],row),
+          con:find(['contact','phone','email','rm'],row)};
+      }).filter(function(p){return p.bank;});
+      if(!added.length){crmT('No rows with a Bank/NBFC column found','err');return;}
+      // Sort by bank name so auto-split by Bank/NBFC is visible
+      var list=gPols(_polCat).concat(added).sort(function(a,b){return(a.bank||'').localeCompare(b.bank||'');});
+      sPols(_polCat,list); renderPolList(_polCat);
+      crmT('Imported '+added.length+' policies — grouped by bank','ok');
+    }catch(err){crmT('Error: '+err.message,'err');}
+    input.value='';
+  };
+  r.readAsArrayBuffer(file);
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  renderBorrows(BROWS);
+  renderBankers(BNKRS);
+  renderActiveFiles();
+  renderPayTable();
+  refreshPolCounts();
+  renderCalendar();
+  renderDumpGrid();
+  renderDumpList();
+});
+
+</script>
+
+<div class="toast" id="TOAST"></div>
+</body>
+</html>
